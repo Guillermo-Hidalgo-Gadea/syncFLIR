@@ -550,7 +550,7 @@ void* AcquireImages(void* arg)
         // clear buffer before starting recording
         try
         {
-            for (unsigned int imagesInBuffer = 0; i < numBuffers; imagesInBuffer++)
+            for (unsigned int imagesInBuffer = 0; imagesInBuffer < numBuffers; imagesInBuffer++)
             {
                 ImagePtr pResultImage = pCam->GetNextImage(100);
                 pResultImage->Release();
