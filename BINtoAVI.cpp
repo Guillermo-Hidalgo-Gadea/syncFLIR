@@ -70,8 +70,7 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 	remove("E:\\FlirCamera\\test.txt");
 
 
-	cout << endl << endl << "*** CREATING VIDEO ***" << endl << endl;
-
+    cout << endl << "*** CONVERTING VIDEO ***" << endl << endl;
 	try
 	{
 		// FILENAME (TODO: append compression type 
@@ -84,22 +83,13 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 		// Start and open video file
 		SpinVideo video;
 
-		// *** NOTES ***
-		// Depending on the file type, a number of settings need to be set in
-		// an object called an option. An uncompressed option only needs to
-		// have the video frame rate set whereas videos with MJPG or H264
-		// compressions should have more values set.
-		//
-		// Once the desired option object is configured, open the video file
-		// with the option in order to create the video file.
-		//
-		// Set maximum video file size to 2GB.
-		// A new video file is generated when 
-		// limit is reached. Setting maximum file
-		// size to 0 indicates no limit.
+		
+		// Set maximum video file size to 2GB. A new video file is generated when limit is reached. Setting maximum file size to 0 indicates no limit.
 		const unsigned int k_videoFileSize = 2048; 
 
 		video.SetMaximumFileSize(k_videoFileSize);
+
+		// Setting chosenVideoType. Once the desired option object is configured, open the video file with the option in order to create the video file.
 
 		if (chosenVideoType == UNCOMPRESSED)
 		{
@@ -172,7 +162,7 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles, string file
 		for (unsigned int fileCnt = 0; fileCnt < numFiles; fileCnt++)
 		{
 			string tempFilename = filenames.at(fileCnt);
-
+            cout << endl << "*** READING BINARY FILE ***" << endl << endl;
 			cout << "Opening " << tempFilename.c_str() << "..." << endl;
 
 			ifstream rawFile(filenames.at(fileCnt).c_str(), ios_base::in | ios_base::binary);
@@ -184,7 +174,7 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles, string file
 				return -1;
 			}
 
-			cout << "Start splitting images..." << endl;
+			cout << "Splitting images..." << endl;
 
 			// Save acquired images into images vector
 			vector<ImagePtr> images;
@@ -207,7 +197,7 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles, string file
 
 			}
 
-			cout << "File[" << fileCnt << "] Retrieved images: " << images.size() << endl;
+			cout << "Retrieved images from BInary file[" << fileCnt << "]: " << images.size() << endl;
 			// Close the file
 			cout << "Closing " << tempFilename.c_str() << "..." << endl;
 			rawFile.close();
