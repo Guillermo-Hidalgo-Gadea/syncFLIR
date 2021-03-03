@@ -40,8 +40,10 @@ enum videoType
 	MJPG,
 	H264
 };
-const videoType chosenVideoType = UNCOMPRESSED;
-std::string compression(1,chosenVideoType);
+const videoType chosenVideoType = MJPG;
+
+// Trying to append compression type to filename
+std::string compression(1, chosenVideoType);
 
 /*
 =================
@@ -65,19 +67,19 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 	}
 
 	fclose(tempFile);
-	//remove("E:\\FlirCamera\\test.txt");
-	
+	remove("E:\\FlirCamera\\test.txt");
+
 
 	cout << endl << endl << "*** CREATING VIDEO ***" << endl << endl;
-	
+
 	try
 	{
-		// *** FILENAME ***
-		string videoFilename = tempFilename.substr(0, tempFilename.length() - 4) + "_" + compression;
-	
-		// *** FRAMERATE *** 
-		float frameRateToSet = 199; // hardcoded, check if real fps
-		cout << "Frame rate to be set to " << frameRateToSet << "..." << endl;
+		// FILENAME (TODO: append compression type 
+		string videoFilename = tempFilename.substr(0, tempFilename.length() - 4);// +"_" + compression.c_str();
+
+		// FRAMERATE 
+		float frameRateToSet = 194; // TODO: hardcoded, check if real fps
+		cout << "Frame Rate set to " << frameRateToSet << " fps" << endl;
 
 		// Start and open video file
 		SpinVideo video;
@@ -91,11 +93,11 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 		// Once the desired option object is configured, open the video file
 		// with the option in order to create the video file.
 		//
-		// Set maximum video file size to 5GB / 5120MB.
-		// A new video file is generated when 5GB
+		// Set maximum video file size to 2GB.
+		// A new video file is generated when 
 		// limit is reached. Setting maximum file
 		// size to 0 indicates no limit.
-		const unsigned int k_videoFileSize = 0; //5120 MB
+		const unsigned int k_videoFileSize = 2048; 
 
 		video.SetMaximumFileSize(k_videoFileSize);
 
@@ -130,15 +132,12 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 
 
 		// Construct and save video
-		cout << "Appending " << images.size() << " images to video file: " << videoFilename << ".avi" << endl
+		cout << "Appending " << images.size() << " images to video file: " << videoFilename << ".avi ..." << endl
 			<< endl;
 
 		for (int imageCnt = 0; imageCnt < images.size(); imageCnt++)
 		{
-			cout << "loop" << endl;
 			video.Append(images[imageCnt]);
-
-			cout << "\tAppended image " << imageCnt << "..." << endl;
 		}
 
 		// Close video file
@@ -162,7 +161,7 @@ The function RetrieveImagesFromFiles loops over all files in filenames vector an
 int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles, string fileFormat = "bmp") //fileFormat NEEDED??
 {
 	int result = 0;
-	//HARDCODED FROM PREVIOUS RECORDING
+	// TODO: HARDCODED FROM PREVIOUS RECORDING 
 	int imageHeight = 1080;
 	int imageWidth = 1440;
 	int imageSize = imageHeight * imageWidth;
@@ -187,14 +186,10 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles, string file
 
 			cout << "Start splitting images..." << endl;
 
-			// Read image into buffer
-			// HOW TO KNOW THE EXACT k_numImages BEFOREHAND?
-			int k_numImages = 100; //rawFile.size() / imageSize;
-
 			// Save acquired images into images vector
 			vector<ImagePtr> images;
 
-			for (int imageCnt = 0; imageCnt < k_numImages; imageCnt++)
+			while (rawFile.good())
 			{
 				char* imageBuffer = new char[imageSize];
 
@@ -205,29 +200,14 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles, string file
 				ImagePtr pImage = Image::Create(imageWidth, imageHeight, 0, 0, PixelFormat_BayerRG8, imageBuffer);
 
 				// Deep copy image into image vector
-				images.push_back(pImage);
-
-				// Release image
-				//pImage->Release();
+				images.push_back(pImage->Convert(PixelFormat_BayerRG8, HQ_LINEAR));
 
 				// Delete the acquired buffer
 				delete[] imageBuffer;
 
-				// Check if reading is successful
-				if (!rawFile.good())
-				{
-					cout << "Error reading from file " << fileCnt << " !" << endl;
-
-					// Close the file
-					rawFile.close();
-
-					return -1;
-				}
-
-				cout << "File[" << fileCnt << "]: Retrieved image " << imageCnt << endl;
-
 			}
 
+			cout << "File[" << fileCnt << "] Retrieved images: " << images.size() << endl;
 			// Close the file
 			cout << "Closing " << tempFilename.c_str() << "..." << endl;
 			rawFile.close();
@@ -263,24 +243,25 @@ int main(int /*argc*/, char** /*argv*/)
     cout << "MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com 2021" << endl;
     cout << "*************************************************************" << endl;
 
+
 	// TODO: Ask for directory with Dialog
 
 	// TODO: List .tmp files in directory as filenames vector
-	vector<string> filenames{ "E:\\FlirCamera\\20210210145518_20323040_file_0.tmp", "E:\\FlirCamera\\20210210145522_20323043_file_1.tmp", "E:\\FlirCamera\\20210210145525_20323052_file_2.tmp" };
+	vector<string> filenames{ "E:\\FlirCamera\\20210303090513_20323040_file0.tmp", "E:\\FlirCamera\\20210303090516_20323043_file1.tmp", "E:\\FlirCamera\\20210303090520_20323052_file2.tmp" };
 
-	int numFiles = filenames.size(); // size list
+	int numFiles = filenames.size();
 	string num = to_string(numFiles);
-	cout << endl << "Running example for" + num + "files..." << endl;
+	cout << endl << "Converting BINtoAVI for " + num + " files..." << endl;
 
 	// Retrieve images from .tmp file
 	result = RetrieveImagesFromFiles(filenames, numFiles, "bmp");
 
 	// Image vector saved to video within Retrieve Image loop
 
-	cout << "Conversion complete..." << endl << endl;
+	cout << "Conversion complete." << endl << endl;
 
 	cout << endl << "Done! Press Enter to exit..." << endl;
-
+	
 	// Print application build information
     cout << "*************************************************************" << endl;
 	cout << "Application build date: " << __DATE__ << " " << __TIME__  << endl;
@@ -290,4 +271,3 @@ int main(int /*argc*/, char** /*argv*/)
 
 	return result;
 }
-
