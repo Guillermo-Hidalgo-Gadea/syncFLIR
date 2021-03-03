@@ -9,7 +9,7 @@ Note that FrameRate and imageHeight and imageWidth are hardcoded from previous r
 
 Install Spinnaker SDK before using this script.
 
-MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com 2021
+MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com
 
 Sourcecode: https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR
 ====================================================================================================
@@ -229,8 +229,8 @@ int main(int /*argc*/, char** /*argv*/)
 
 	// Print application build information
     cout << "*************************************************************" << endl;
-	cout << "Application build date: " << __DATE__ << " " << __TIME__  << endl;
-    cout << "MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com 2021" << endl;
+    cout << "Application build date: " << __DATE__ << " " << __TIME__  << endl;
+    cout << "MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com" << endl;
     cout << "*************************************************************" << endl;
 
 
@@ -254,8 +254,8 @@ int main(int /*argc*/, char** /*argv*/)
 	
 	// Print application build information
     cout << "*************************************************************" << endl;
-	cout << "Application build date: " << __DATE__ << " " << __TIME__  << endl;
-    cout << "MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com 2021" << endl;
+    cout << "Application build date: " << __DATE__ << " " << __TIME__  << endl;
+    cout << "MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com" << endl;
     cout << "*************************************************************" << endl;
 	getchar();
 
