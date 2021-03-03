@@ -1,6 +1,6 @@
 /*
 ====================================================================================================
-This script was developed with close assistance by the FLIR Systems Support Team, and is adapted 
+This script was developed with close assistance by the FLIR Systems Support Team, and is adapted
 from the examples SavetoAvi.cpp and AcquisitionMultipleThread.cpp.
 
 After recording hardware triggered, synchronized images to binary files in the previous script,
@@ -42,8 +42,6 @@ enum videoType
 };
 const videoType chosenVideoType = MJPG;
 
-// Trying to append compression type to filename
-std::string compression(1, chosenVideoType);
 
 /*
 =================
@@ -70,22 +68,22 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 	remove("E:\\FlirCamera\\test.txt");
 
 
-    cout << endl << "*** CONVERTING VIDEO ***" << endl << endl;
+	cout << endl << "*** CONVERTING VIDEO ***" << endl << endl;
 	try
 	{
 		// FILENAME (TODO: append compression type 
-		string videoFilename = tempFilename.substr(0, tempFilename.length() - 4);// +"_" + compression.c_str();
+		string videoFilename = tempFilename.substr(0, tempFilename.length() - 4) + "_" + to_string(chosenVideoType);
 
 		// FRAMERATE 
 		float frameRateToSet = 194; // TODO: hardcoded, check if real fps
-		cout << "Frame Rate set to " << frameRateToSet << " fps" << endl;
+		cout << "Frame Rate set to " << frameRateToSet << "FPS" << endl;
 
 		// Start and open video file
 		SpinVideo video;
 
-		
+
 		// Set maximum video file size to 2GB. A new video file is generated when limit is reached. Setting maximum file size to 0 indicates no limit.
-		const unsigned int k_videoFileSize = 2048; 
+		const unsigned int k_videoFileSize = 2048;
 
 		video.SetMaximumFileSize(k_videoFileSize);
 
@@ -104,7 +102,7 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 			Video::MJPGOption option;
 
 			option.frameRate = frameRateToSet;
-			option.quality = 75;
+			option.quality = 95;
 
 			video.Open(videoFilename.c_str(), option);
 		}
@@ -122,8 +120,7 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 
 
 		// Construct and save video
-		cout << "Appending " << images.size() << " images to video file: " << videoFilename << ".avi ..." << endl
-			<< endl;
+		cout << "Appending " << images.size() << " images to video file... ";
 
 		for (int imageCnt = 0; imageCnt < images.size(); imageCnt++)
 		{
@@ -132,8 +129,8 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 
 		// Close video file
 		video.Close();
-
-		cout << endl << "Video " << videoFilename << ".avi saved!" << endl << endl;
+		cout << " done!" << endl;
+		cout  << "Video " << videoFilename << ".avi saved!" << endl << endl;
 	}
 	catch (Spinnaker::Exception& e)
 	{
@@ -148,7 +145,7 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 The function RetrieveImagesFromFiles loops over all files in filenames vector and retrieves chunks if imageSize from binary file. These chunks are conevrted into image structure and appended to images vector. The images vector is passed to the function SaveVectorToVideo and saved as AVI. Parameters imageHeight and imageWidth are hardcoded from previous recording settings.
 =================
 */
-int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles, string fileFormat = "bmp") //fileFormat NEEDED??
+int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles)
 {
 	int result = 0;
 	// TODO: HARDCODED FROM PREVIOUS RECORDING 
@@ -162,7 +159,7 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles, string file
 		for (unsigned int fileCnt = 0; fileCnt < numFiles; fileCnt++)
 		{
 			string tempFilename = filenames.at(fileCnt);
-            cout << endl << "*** READING BINARY FILE ***" << endl << endl;
+			cout << endl << "*** READING BINARY FILE ***" << endl << endl;
 			cout << "Opening " << tempFilename.c_str() << "..." << endl;
 
 			ifstream rawFile(filenames.at(fileCnt).c_str(), ios_base::in | ios_base::binary);
@@ -174,7 +171,7 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles, string file
 				return -1;
 			}
 
-			cout << "Splitting images..." << endl;
+			cout << "Splitting images...";
 
 			// Save acquired images into images vector
 			vector<ImagePtr> images;
@@ -196,10 +193,10 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles, string file
 				delete[] imageBuffer;
 
 			}
-
-			cout << "Retrieved images from BInary file[" << fileCnt << "]: " << images.size() << endl;
+			cout << " done!" << endl;
+			cout << "Retrieved images from Binary file: " << images.size() << endl;
 			// Close the file
-			cout << "Closing " << tempFilename.c_str() << "..." << endl;
+			cout << "Closing binary file" << endl;
 			rawFile.close();
 
 			// start converting image vector into avi for fileCnt loop
@@ -228,35 +225,50 @@ int main(int /*argc*/, char** /*argv*/)
 	int result = 0;
 
 	// Print application build information
-    cout << "*************************************************************" << endl;
-    cout << "Application build date: " << __DATE__ << " " << __TIME__  << endl;
-    cout << "MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com" << endl;
-    cout << "*************************************************************" << endl;
+	cout << "*************************************************************" << endl;
+	cout << "Application build date: " << __DATE__ << " " << __TIME__ << endl;
+	cout << "MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com" << endl;
+	cout << "*************************************************************" << endl;
 
 
-	// TODO: Ask for directory with Dialog
+	// TODO: Ask for files with Dialog
+	// Manual input of filenames to be converted
+	vector<string> filenames = {};
+	string S, T;
+	cout << endl << "Enter the binary files to convert separated by a + sign: "<< endl;
+	getline(cin, S); // read entire line
+	stringstream X(S);
 
-	// TODO: List .tmp files in directory as filenames vector
-	vector<string> filenames{ "E:\\FlirCamera\\20210303090513_20323040_file0.tmp", "E:\\FlirCamera\\20210303090516_20323043_file1.tmp", "E:\\FlirCamera\\20210303090520_20323052_file2.tmp" };
+	while (getline(X, T, '+')) { //separate input by + separator
+		filenames.push_back(T); // save input as string vector
+	}
 
 	int numFiles = filenames.size();
 	string num = to_string(numFiles);
 	cout << endl << "Converting BINtoAVI for " + num + " files..." << endl;
+	for (int files = 0; files < numFiles; files++)
+	{
+		cout << filenames[files] << endl;
+	}
+
+	cout << endl << "Press Enter to convert files" << endl << endl;
+	getchar(); // pass filenames vector to RetrieveImagesFromFiles
+
 
 	// Retrieve images from .tmp file
-	result = RetrieveImagesFromFiles(filenames, numFiles, "bmp");
+	result = RetrieveImagesFromFiles(filenames, numFiles);
 
 	// Image vector saved to video within Retrieve Image loop
 
-	cout << "Conversion complete." << endl << endl;
+	cout << "Conversion complete." << endl;
 
 	cout << endl << "Done! Press Enter to exit..." << endl;
-	
+
 	// Print application build information
-    cout << "*************************************************************" << endl;
-    cout << "Application build date: " << __DATE__ << " " << __TIME__  << endl;
-    cout << "MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com" << endl;
-    cout << "*************************************************************" << endl;
+	cout << "*************************************************************" << endl;
+	cout << "Application build date: " << __DATE__ << " " << __TIME__ << endl;
+	cout << "MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com" << endl;
+	cout << "*************************************************************" << endl;
 	getchar();
 
 	return result;
