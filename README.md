@@ -9,5 +9,7 @@ A synchronized multiview video recording setup using FLIR cameras and Spinnaker 
 
 ## Instructions
 1) To record multiple synchronized videos to binary file use RECtoBIN.cpp
-2) To convert the recorded binary files use BINtoAVI.cpp  
-3) To play the video use VideoPlayer.py 
+![Screenshot](screenshot1.png)
+3) To convert the recorded binary files use BINtoAVI.cpp  
+![Screenshot](screenshot2.png)
+5) To play the video use VideoPlayer.py 
