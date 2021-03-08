@@ -32,6 +32,7 @@ print("Video Frame Rate: %d FPS" %fps)
 print("Frames contained: %d" %total)
 print("Video duration: %d sec" %duration)
 
+
 # Check if camera opened successfully 
 if (cap.isOpened()== False): 
     print("Error opening video file") 
@@ -44,7 +45,7 @@ while(cap.isOpened()):
     if ret == True:
         # resize frame
         h, w, c = frame.shape
-        frame = cv2.resize(frame, (int(w/2), int(h/2))) 
+        frame = cv2.resize(frame, (int(w/1.5), int(h/1.5))) 
         
         # Display the resulting frame
         cv2.imshow('Frame', frame)
@@ -52,7 +53,7 @@ while(cap.isOpened()):
         # Press Q on keyboard to exit
         if cv2.waitKey(25) & 0xFF == ord('q'):
             break
-        
+
     # Break the loop
     else:
         break
@@ -60,6 +61,7 @@ while(cap.isOpened()):
 # When everything done, release 
 # the video capture object 
 cap.release() 
+
 
 # Closes all the frames 
 cv2.destroyAllWindows() 
