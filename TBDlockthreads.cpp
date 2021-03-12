@@ -23,11 +23,9 @@ Sourcecode: https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR
 #include <assert.h>
 #include <time.h>
 #include <cmath>
-
 #ifndef _WIN32
 #include <pthread.h>
 #endif
-
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -36,9 +34,10 @@ using namespace std;
 //using std::cout;
 //using Spinnaker::Exception;
 
-const string triggerCam = "20323052";
-const double exposureTime = 5000.0; // in microseconds
-const string directory = "C:\\Users\\hidalggc\\Documents\\FlirCamera\\";
+// CONFIG FILES FOR RECORDING
+const string triggerCam = "20323052"; // serial number of primary camera
+const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/FPS)
+const string directory = "C:\\Users\\hidalggc\\Documents\\FlirCamera\\"; // save path
 const int numBuffers = 200;
 
 // Directory to save data to.
@@ -50,14 +49,13 @@ vector<size_t> imageHeight;
 vector<size_t> imageWidth;
 
 // placeholder for names of file and camera IDs
-vector<string> filenames;
+vector<string> filenames; // TODO: needed?
 vector<ofstream> cameraFiles;
 ofstream csvFile;
 int cameraCnt;
+string serialNumber = "";
 
-// Pixel format 
-vector<PixelFormatEnums> pixelFormat;
-
+// mutex lock for parallel threads
 HANDLE ghMutex;
 
 enum triggerType
@@ -131,7 +129,7 @@ string getCurrentDateTime()
 The function CreateFiles works within a for loop and creates .tmp binary files for each camera, as well as a single csv logging sheet csvFile. The files are saved in *directory* as initialised above.
 =================
 */
-int CreateFiles(string serialNumber, int i)
+int CreateFiles(string serialNumber, int cameraCnt)
 {
 	int result = 0;
 	cout << endl << "*** CREATING FILES ***" << endl << endl;
@@ -141,20 +139,20 @@ int CreateFiles(string serialNumber, int i)
 	string tmpFilename;
 	string csvFilename;
 
-	sstream_tmpFilename << csDestinationDirectory << directory + getCurrentDateTime() + "_" + serialNumber << "_file" << i << ".tmp"; // TODO not i but cameraCnt
+	sstream_tmpFilename << csDestinationDirectory << directory + getCurrentDateTime() + "_" + serialNumber << "_file" << cameraCnt << ".tmp";
 	sstream_tmpFilename >> tmpFilename;
 	//filenames.push_back(tmpFilename); // TODO: why save the name if file is saved in cameraFiles?
 
 	cout << "File " << tmpFilename << " initialized" << endl;
 
-	// Create temporary files
+	// Create temporary file from serialnum assigned to cameraCnt
 	ofstream filename;
 	cameraFiles.push_back(std::move(filename)); // TODO: needed because vector size not initialized before?
-	cameraFiles[i].open(tmpFilename.c_str(), ios_base::out | ios_base::binary);
+	cameraFiles[cameraCnt].open(tmpFilename.c_str(), ios_base::out | ios_base::binary);
 
-	if (i == 0)
+	if (cameraCnt == 0)
 	{
-		sstream_csvFile << csDestinationDirectory << directory + getCurrentDateTime() + "_" + serialNumber << "_file_" << i << ".csv";
+		sstream_csvFile << csDestinationDirectory << directory + getCurrentDateTime() << ".csv";
 		sstream_csvFile >> csvFilename;
 		//filenames.push_back(csvFilename); not pushback in filenames!
 		//csvFile.push_back(csvFilename);
@@ -163,7 +161,7 @@ int CreateFiles(string serialNumber, int i)
 
 		// Create temporary files
 		csvFile.open(csvFilename);
-		csvFile << "Frame ID" << "," << "Timestamp" << "," << " Serial number" << endl;
+		csvFile << "Frame ID" << "," << "Timestamp" << "," << " Serial number" << "," << "File number" << endl;
 	}
 	return result;
 }
@@ -484,89 +482,90 @@ The function AcquireImages runs in parallel threads and grabs images from each c
 */
 DWORD WINAPI AcquireImages(LPVOID lpParam)
 {
-	CameraPtr pCam = *((CameraPtr*)lpParam);
-	try
+	// RUN FUNCTINO IN LOCKED THREADS
+	// Start mutex_lock moved to top of function
+	DWORD dwCount = 0, dwWaitResult;
+	dwWaitResult = WaitForSingleObject(
+		ghMutex,    // handle to mutex
+		INFINITE);  // no time-out interval
+
+	switch (dwWaitResult)
 	{
-		// Retrieve TL device nodemap
-		INodeMap& nodeMapTLDevice = pCam->GetTLDeviceNodeMap();
-
-		// Retrieve device serial number for filename
-		CStringPtr ptrStringSerial = pCam->GetTLDeviceNodeMap().GetNode("DeviceSerialNumber");
-
-		string serialNumber = ""; //TODO: already initialized before
-		if (IsAvailable(ptrStringSerial) && IsReadable(ptrStringSerial))
-		{
-			serialNumber = ptrStringSerial->GetValue();
-		}
-		cout << "[" << serialNumber << "] " << "IMAGE ACQUISITION THREAD STARTING" << endl;
-
-		// Initialize camera
-		pCam->Init();
-		INodeMap& nodeMap = pCam->GetNodeMap();
-
-		// Begin acquiring test images
-		pCam->BeginAcquisition();
-
-		// clear buffer before starting recording
-		try
-		{
-			for (unsigned int imagesInBuffer = 0; imagesInBuffer < numBuffers; imagesInBuffer++)
-			{
-				// first numBuffer images are descarted
-				ImagePtr pResultImage = pCam->GetNextImage(10);
-				pResultImage->Release();
-			}
-		}
-		catch (Exception& e)
-		{
-		}
-		pCam->EndAcquisition();
-
-		// Start actual image acquisition
-		pCam->BeginAcquisition();
-		cout << "[" << serialNumber << "] " << "Started recording..." << endl;
-
-		// Retrieve, convert, and save images for each camera
-		CStringPtr ptrDeviceUserId = nodeMap.GetNode("DeviceUserID");
-		if (!IsAvailable(ptrDeviceUserId) || !IsWritable(ptrDeviceUserId))
-		{
-			cout << "Unable to get node ptrDeviceUserId. Aborting..." << endl << endl;
-			return -1;
-		}
-
-		while (GetAsyncKeyState(VK_ESCAPE) == 0)
-		{
+		// The thread got ownership of the mutex
+		case WAIT_OBJECT_0:
+			// start function in locked thread
+			CameraPtr pCam = *((CameraPtr*)lpParam);
 			try
 			{
-				// Retrieve next received image and ensure image completion
-				ImagePtr pResultImage = pCam->GetNextImage();
+				// Retrieve TL device nodemap
+				INodeMap& nodeMapTLDevice = pCam->GetTLDeviceNodeMap();
 
-				if (pResultImage->IsIncomplete())
+				// Retrieve device serial number for filename
+				CStringPtr ptrStringSerial = pCam->GetTLDeviceNodeMap().GetNode("DeviceSerialNumber");
+
+				if (IsAvailable(ptrStringSerial) && IsReadable(ptrStringSerial))
 				{
-					cout << "[" << serialNumber << "] " << "Image incomplete with image status " << pResultImage->GetImageStatus() << "..." << endl << endl;
+					serialNumber = ptrStringSerial->GetValue();
 				}
-				else
+				//cout << "[" << serialNumber << "] " << "IMAGE ACQUISITION THREAD STARTING" << endl;
+
+				// Initialize camera
+				pCam->Init();
+				INodeMap& nodeMap = pCam->GetNodeMap();
+
+				// Begin acquiring idle images to clear buffer before recording
+				pCam->BeginAcquisition();
+				try
 				{
-					//Acquire the image buffer to write to a file
-					char* imageData = static_cast<char*>(pResultImage->GetData());
-					
-					// TODO: cameraCnt is defined as Device User Id and at the same time vector position in cameraFiles
-					string deviceUser_ID = ptrDeviceUserId->GetValue();
-					cameraCnt = atoi(deviceUser_ID.c_str());
-
-					// TODO: mutex_lock
-					DWORD dwCount = 0, dwWaitResult;
-					dwWaitResult = WaitForSingleObject(
-						ghMutex,    // handle to mutex
-						INFINITE);  // no time-out interval
-
-					switch (dwWaitResult)
+					for (unsigned int imagesInBuffer = 0; imagesInBuffer < numBuffers; imagesInBuffer++)
 					{
-						// The thread got ownership of the mutex
-						case WAIT_OBJECT_0:
-							// Do the writing
+						// first numBuffer images are descarted
+						ImagePtr pResultImage = pCam->GetNextImage(100);
+						pResultImage->Release();
+					}
+				}
+				catch (Exception& e)
+				{
+				}
+				pCam->EndAcquisition();
+				
+				// Start actual image acquisition
+				pCam->BeginAcquisition();
+				cout << "Camera [" << serialNumber << "] " << "Started recording..." << endl;
+
+				// Identify camera in thread by DeviceUserID
+				CStringPtr ptrDeviceUserId = nodeMap.GetNode("DeviceUserID");
+				if (!IsAvailable(ptrDeviceUserId) || !IsWritable(ptrDeviceUserId))
+				{
+					cout << "Unable to get node ptrDeviceUserId. Aborting..." << endl << endl;
+					return -1;
+				}
+
+				// if thread lock not working move back to while loop to assign every frame
+				string deviceUser_ID = ptrDeviceUserId->GetValue();
+				cameraCnt = atoi(deviceUser_ID.c_str());
+
+				// Retrieve and save images in while loop until manual ESC press
+				while (GetAsyncKeyState(VK_ESCAPE) == 0)
+				{
+					try
+					{
+						// Retrieve next image and ensure image completion
+						ImagePtr pResultImage = pCam->GetNextImage(); // waiting time for NextImage indefinite
+						
+						if (pResultImage->IsIncomplete())
+						{
+							cout << "[" << serialNumber << "] " << "Image incomplete with image status " << pResultImage->GetImageStatus() << "..." << endl << endl;
+						}
+
+						else
+						{
+							// Acquire the image buffer to write to a file
+							char* imageData = static_cast<char*>(pResultImage->GetData());
+							
+							// Do the writing to assigned cameraFile
 							cameraFiles[cameraCnt].write(imageData, pResultImage->GetImageSize());
-							csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << endl;
+							csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << endl;
 
 							// Check if the writing is successful
 							if (!cameraFiles[cameraCnt].good())
@@ -574,40 +573,72 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 								cout << "Error writing to file for camera " << cameraCnt << " !" << endl;
 								return -1;
 							}
-							
-							// Release image								pResultImage->Release();
-							ReleaseMutex(ghMutex); 			
-							break;
 
-						// The thread got ownership of an abandoned mutex
-						// The database is in an indeterminate state
-						case WAIT_ABANDONED:
-							cout << "wait abandoned" << endl;
-							//return FALSE;
+							// Release image
+							pResultImage->Release();
+
+							/* // Start mutex_lock moved to top of function
+							DWORD dwCount = 0, dwWaitResult;
+							dwWaitResult = WaitForSingleObject(
+								ghMutex,    // handle to mutex
+								INFINITE);  // no time-out interval
+
+							switch (dwWaitResult)
+							{
+								// The thread got ownership of the mutex
+								case WAIT_OBJECT_0:
+									// Do the writing to assigned cameraFile
+									cameraFiles[cameraCnt].write(imageData, pResultImage->GetImageSize());
+									csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << endl;
+
+									// Check if the writing is successful
+									if (!cameraFiles[cameraCnt].good())
+									{
+										cout << "Error writing to file for camera " << cameraCnt << " !" << endl;
+										return -1;
+									}
+
+									// Release image								pResultImage->Release();
+									ReleaseMutex(ghMutex); 			
+									break;
+
+								// The thread got ownership of an abandoned mutex
+								// The database is in an indeterminate state
+								case WAIT_ABANDONED:
+									cout << "wait abandoned" << endl;
+									//return FALSE;
+							} */
+						}
+					}
+					catch (Spinnaker::Exception& e)
+					{
+						cout << "[" << serialNumber << "] " << "Error: " << e.what() << endl;
+						return -1;
 					}
 				}
+
+				// End acquisition
+				pCam->EndAcquisition();
+				cameraFiles[cameraCnt].close();
+				csvFile.close();
+
+				// Deinitialize camera
+				pCam->DeInit();
+
+				return 1;
 			}
 			catch (Spinnaker::Exception& e)
 			{
-				cout << "[" << serialNumber << "] " << "Error: " << e.what() << endl;
-				return -1;
+				cout << "Error: " << e.what() << endl;
+				return 0;
 			}
-		}
 
-		// End acquisition
-		pCam->EndAcquisition();
-		cameraFiles[cameraCnt].close();
-		csvFile.close();
+	ReleaseMutex(ghMutex); 			
+	break;
 
-		// Deinitialize camera
-		pCam->DeInit();
-
-		return 1;
-	}
-	catch (Spinnaker::Exception& e)
-	{
-		cout << "Error: " << e.what() << endl;
-		return 0;
+	// The thread got ownership of an abandoned mutex
+	case WAIT_ABANDONED:
+		cout << "wait abandoned" << endl;
 	}
 }
 
@@ -622,8 +653,6 @@ int InitializeMultipleCameras(CameraList camList, CameraPtr * pCamList, unsigned
 
 	try
 	{
-		string serialNumber = "";
-
 		// What is this part doing?
 		imageHeight.resize(camListSize); // TODO: compression here?
 		imageWidth.resize(camListSize);
@@ -642,7 +671,7 @@ int InitializeMultipleCameras(CameraList camList, CameraPtr * pCamList, unsigned
 				serialNumber = ptrStringSerial->GetValue();
 			}
 
-			// Set a DeviceUserID from loop counter to assign cameras to cameraFiles in vector TODO: better camera to file assignement
+			// Set DeviceUserID as loop counter to assign camera order to cameraFiles
 			CStringPtr ptrDeviceUserId = nodeMap.GetNode("DeviceUserID");
 			if (!IsAvailable(ptrDeviceUserId) || !IsWritable(ptrDeviceUserId))
 			{
@@ -651,10 +680,11 @@ int InitializeMultipleCameras(CameraList camList, CameraPtr * pCamList, unsigned
 			}
 			stringstream sstreamDeviceUserID;
 			sstreamDeviceUserID << i;
-			string str = sstreamDeviceUserID.str();
-			ptrDeviceUserId->SetValue(str.c_str());
+			string DeviceUserID = sstreamDeviceUserID.str();
+			ptrDeviceUserId->SetValue(DeviceUserID.c_str());
+			cameraCnt = atoi(DeviceUser_ID.c_str());
 
-			cout << endl << endl << "[" << serialNumber << "] " << "*** Camera Initialization ***" << endl;
+			cout << endl << endl << "[" << serialNumber << "] " << "*** Camera Initialization ***" << " ID: [" << DeviceUserID <<"]" << endl;
 
 			if (serialNumber == triggerCam)  // if primary camera as defined on top
 			{
@@ -673,7 +703,7 @@ int InitializeMultipleCameras(CameraList camList, CameraPtr * pCamList, unsigned
 			ConfigureExposure(nodeMap);
 
 			// create binary files for each camera
-			CreateFiles(serialNumber, i); //TODO: better assignement camera to file
+			CreateFiles(serialNumber, cameraCnt);
 
 			pCamList[i]->DeInit();
 		}
@@ -714,7 +744,7 @@ int RecordMultipleCameraThreads(CameraList camList)
 		for (unsigned int i = 0; i < camListSize; i++)
 		{
 			// Start grab thread
-			grabThreads[i] = CreateThread(nullptr, 0, AcquireImages, &pCamList[i], 0, nullptr); // USING ACQUIREIMAGES FUNCTION
+			grabThreads[i] = CreateThread(nullptr, 0, AcquireImages, &pCamList[i], 0, nullptr); // call AcquireImages for each thread
 			assert(grabThreads[i] != nullptr);
 		}
 
@@ -725,13 +755,13 @@ int RecordMultipleCameraThreads(CameraList camList)
 			TRUE,        // wait for all of the threads
 			INFINITE     // wait forever
 		);
+
 		CloseHandle(ghMutex);
 
 		// Check thread return code for each camera
 		for (unsigned int i = 0; i < camListSize; i++)
 		{
 			DWORD exitcode;
-
 			BOOL rc = GetExitCodeThread(grabThreads[i], &exitcode);
 			if (!rc)
 			{
