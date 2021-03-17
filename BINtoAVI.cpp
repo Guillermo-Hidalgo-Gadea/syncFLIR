@@ -33,6 +33,13 @@ using namespace Spinnaker::Video;
 using namespace std;
 
 
+// FRAMERATE 
+loat frameRateToSet = 194; // TODO: hardcoded, check if real fps
+
+// Image size
+int imageHeight = 1080; // TODO: HARDCODED FROM PREVIOUS RECORDING 
+int imageWidth = 1440;
+
 // select the type of video compression
 enum videoType
 {
@@ -55,7 +62,7 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 	// Since this application saves images in the current folder
 	// we must ensure that we have permission to write to this folder.
 	// If we do not have permission, fail right away.
-	FILE* tempFile = fopen("E:\\FlirCamera\\test.txt", "w+");
+	FILE* tempFile = fopen("test.txt", "w+");
 	if (tempFile == nullptr)
 	{
 		cout << "Failed to create file in current folder.  Please check permissions." << endl;
@@ -65,7 +72,7 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 	}
 
 	fclose(tempFile);
-	remove("E:\\FlirCamera\\test.txt");
+	remove("test.txt");
 
 
 	cout << endl << "*** CONVERTING VIDEO ***" << endl << endl;
@@ -74,8 +81,6 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 		// FILENAME (TODO: append compression type 
 		string videoFilename = tempFilename.substr(0, tempFilename.length() - 4) + "_" + to_string(chosenVideoType);
 
-		// FRAMERATE 
-		float frameRateToSet = 194; // TODO: hardcoded, check if real fps
 		cout << "Frame Rate set to " << frameRateToSet << "FPS" << endl;
 
 		// Start and open video file
@@ -148,9 +153,6 @@ The function RetrieveImagesFromFiles loops over all files in filenames vector an
 int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles)
 {
 	int result = 0;
-	// TODO: HARDCODED FROM PREVIOUS RECORDING 
-	int imageHeight = 1080;
-	int imageWidth = 1440;
 	int imageSize = imageHeight * imageWidth;
 	// PixelFormat_BayerRG8;  see http://softwareservices.flir.com/Spinnaker/latest/group___camera_defs__h.html#ggabd5af55aaa20bcb0644c46241c2cbad1aab73a79118b4db06f577b5e2563d7246
 
@@ -176,34 +178,44 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles)
 			// Save acquired images into images vector
 			vector<ImagePtr> images;
 
+			// Binary video recordings get very large and may not fit in RAM read file and write video in steps
+			int frameCnt = 0;
+
 			while (rawFile.good())
-			{
-				char* imageBuffer = new char[imageSize];
+			{	
+				// Split binary reading in case .tmp is too large for memory
+				for (int frame = 0; frame < frameCnt + 5000, frame++)
+				{	
+					// Reading images from Binary
+					char* imageBuffer = new char[imageSize];
 
-				rawFile.read(imageBuffer, imageSize);
+					rawFile.read(imageBuffer, imageSize);
 
-				// Import binary image into Image structure
-				// HARDCODED ATTRIBUTES FROM PREVIOUS RECORDING
-				ImagePtr pImage = Image::Create(imageWidth, imageHeight, 0, 0, PixelFormat_BayerRG8, imageBuffer);
+					// Import binary image into Image structure
+					ImagePtr pImage = Image::Create(imageWidth, imageHeight, 0, 0, PixelFormat_BayerRG8, imageBuffer);
 
-				// Deep copy image into image vector
-				images.push_back(pImage->Convert(PixelFormat_BayerRG8, HQ_LINEAR));
+					// Deep copy image into image vector
+					images.push_back(pImage->Convert(PixelFormat_BayerRG8, HQ_LINEAR));
 
-				// Delete the acquired buffer
-				delete[] imageBuffer;
+					// Delete the acquired buffer
+					delete[] imageBuffer;
+				}
 
+				// Saving images from split above
+				cout << "Retrieved images from Binary file: " << images.size() << endl;
+
+				// start converting image vector into avi for fileCnt loop
+				result = SaveVectorToVideo(tempFilename, images);
+
+				// reset for next loop
+				frameCnt = frameCnt + 5000;
+				images.clear();
+				
+				cout << endl << endl;
 			}
-			cout << " done!" << endl;
-			cout << "Retrieved images from Binary file: " << images.size() << endl;
 			// Close the file
 			cout << "Closing binary file" << endl;
 			rawFile.close();
-
-			// start converting image vector into avi for fileCnt loop
-			result = SaveVectorToVideo(tempFilename, images);
-
-			cout << endl << endl;
-
 		}
 	}
 	catch (Spinnaker::Exception& e)

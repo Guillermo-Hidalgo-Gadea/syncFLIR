@@ -3,7 +3,7 @@
 This script was developed with close assistance by the FLIR Systems Support Team, and is adapted
 from the example AcquisitionMultipleThread.cpp.
 This program initializes and configures FLIR cameras in a hardware trigger setup.
-Image acquisition runs in parallel threads and saves data to binary file.
+Image acquisition runs in parallel threads locked during grabbing and writing, and saves data to binary file.
 The .tmp output file has to be converted to AVI with a different code TMPtoAVI.
 Note that FrameRate and imageHeight and imageWidth are hardcoded from recording settings.
 Install Spinnaker SDK before using this script.
@@ -37,7 +37,7 @@ using namespace std;
 // CONFIG FILES FOR RECORDING
 const string triggerCam = "20323052"; // serial number of primary camera
 const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/FPS)
-double compression = 1.0; // compression
+double compression = 1.0; // TODO: compression
 
 // Files are saved to working directory, place the exe file in the right folder
 const int numBuffers = 200;
