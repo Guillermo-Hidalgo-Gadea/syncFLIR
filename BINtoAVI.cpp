@@ -2,15 +2,11 @@
 ====================================================================================================
 This script was developed with close assistance by the FLIR Systems Support Team, and is adapted
 from the examples SavetoAvi.cpp and AcquisitionMultipleThread.cpp.
-
 After recording hardware triggered, synchronized images to binary files in the previous script,
 this file converts the binary file back to a vector of images and creates a video file.
 Note that FrameRate and imageHeight and imageWidth are hardcoded from previous recording settings.
-
 Install Spinnaker SDK before using this script.
-
 MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com
-
 Sourcecode: https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR
 ====================================================================================================
 */
@@ -34,7 +30,7 @@ using namespace std;
 
 
 // FRAMERATE 
-loat frameRateToSet = 194; // TODO: hardcoded, check if real fps
+float frameRateToSet = 194; // TODO: hardcoded, check if real fps
 
 // Image size
 int imageHeight = 1080; // TODO: HARDCODED FROM PREVIOUS RECORDING 
@@ -55,7 +51,7 @@ const videoType chosenVideoType = MJPG;
 The function SaveVectorToVideo takes an image vector and converts it into avi. Parameters like frameRateToSet, k_videoFileSize, MJPGquality and H264bitrate are changed within the function.
 =================
 */
-int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
+int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images, int part)
 {
 	int result = 0;
 
@@ -79,7 +75,7 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 	try
 	{
 		// FILENAME (TODO: append compression type 
-		string videoFilename = tempFilename.substr(0, tempFilename.length() - 4) + "_" + to_string(chosenVideoType);
+		string videoFilename = tempFilename.substr(0, tempFilename.length() - 4) + "_" + to_string(part);
 
 		cout << "Frame Rate set to " << frameRateToSet << "FPS" << endl;
 
@@ -88,7 +84,7 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 
 
 		// Set maximum video file size to 2GB. A new video file is generated when limit is reached. Setting maximum file size to 0 indicates no limit.
-		const unsigned int k_videoFileSize = 2048;
+		const unsigned int k_videoFileSize = 0;
 
 		video.SetMaximumFileSize(k_videoFileSize);
 
@@ -135,7 +131,7 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images)
 		// Close video file
 		video.Close();
 		cout << " done!" << endl;
-		cout  << "Video " << videoFilename << ".avi saved!" << endl << endl;
+		cout << "Video " << videoFilename << ".avi saved!" << endl << endl;
 	}
 	catch (Spinnaker::Exception& e)
 	{
@@ -158,7 +154,7 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles)
 
 	try {
 		// Loop through the binary filenames and retrieve images of imageSize
-		for (unsigned int fileCnt = 0; fileCnt < numFiles; fileCnt++)
+		for (int fileCnt = 0; fileCnt < numFiles; fileCnt++)
 		{
 			string tempFilename = filenames.at(fileCnt);
 			cout << endl << "*** READING BINARY FILE ***" << endl << endl;
@@ -180,39 +176,49 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles)
 
 			// Binary video recordings get very large and may not fit in RAM read file and write video in steps
 			int frameCnt = 0;
+			int part = 1;
 
 			while (rawFile.good())
-			{	
+			{
 				// Split binary reading in case .tmp is too large for memory
-				for (int frame = 0; frame < frameCnt + 5000, frame++)
-				{	
-					// Reading images from Binary
-					char* imageBuffer = new char[imageSize];
+				if (frameCnt > 5000)
+				{
+					// Saving images from split above
+					cout << "Retrieved images from Binary file: " << images.size() << endl;
 
-					rawFile.read(imageBuffer, imageSize);
+					// start converting image vector into avi for fileCnt loop
+					result = SaveVectorToVideo(tempFilename, images, part);
 
-					// Import binary image into Image structure
-					ImagePtr pImage = Image::Create(imageWidth, imageHeight, 0, 0, PixelFormat_BayerRG8, imageBuffer);
-
-					// Deep copy image into image vector
-					images.push_back(pImage->Convert(PixelFormat_BayerRG8, HQ_LINEAR));
-
-					// Delete the acquired buffer
-					delete[] imageBuffer;
+					// reset for next batch
+					images.clear();
+					frameCnt = 0;
+					part++;
 				}
 
-				// Saving images from split above
-				cout << "Retrieved images from Binary file: " << images.size() << endl;
+				// Reading images from Binary
+				char* imageBuffer = new char[imageSize];
 
-				// start converting image vector into avi for fileCnt loop
-				result = SaveVectorToVideo(tempFilename, images);
+				rawFile.read(imageBuffer, imageSize);
 
-				// reset for next loop
-				frameCnt = frameCnt + 5000;
-				images.clear();
-				
-				cout << endl << endl;
+				// Import binary image into Image structure
+				ImagePtr pImage = Image::Create(imageWidth, imageHeight, 0, 0, PixelFormat_BayerRG8, imageBuffer);
+
+				// Deep copy image into image vector
+				images.push_back(pImage->Convert(PixelFormat_BayerRG8, HQ_LINEAR));
+
+				// Delete the acquired buffer
+				delete[] imageBuffer;
+
+				// update frame counter
+				frameCnt++;
 			}
+
+			// Saving rest images from last split 
+			cout << "Retrieved images from Binary file: " << images.size() << endl;
+
+			// start converting image vector into avi for fileCnt loop
+			result = SaveVectorToVideo(tempFilename, images, part);
+
 			// Close the file
 			cout << "Closing binary file" << endl;
 			rawFile.close();
@@ -247,7 +253,7 @@ int main(int /*argc*/, char** /*argv*/)
 	// Manual input of filenames to be converted
 	vector<string> filenames = {};
 	string S, T;
-	cout << endl << "Enter the binary files to convert separated by a + sign: "<< endl;
+	cout << endl << "Enter the binary files to convert separated by a + sign: " << endl;
 	getline(cin, S); // read entire line
 	stringstream X(S);
 
