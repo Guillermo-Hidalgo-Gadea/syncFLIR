@@ -37,7 +37,8 @@ using namespace std;
 // CONFIG FILES FOR RECORDING
 const string triggerCam = "20323052"; // serial number of primary camera
 const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/FPS)
-const string directory = "C:\\Users\\hidalggc\\Documents\\FlirCamera\\"; // save path
+
+// Files are saved to working directory, place the exe file in the right folder
 const int numBuffers = 200;
 
 // Directory to save data to.
@@ -53,7 +54,7 @@ vector<string> filenames; // TODO: needed?
 vector<ofstream> cameraFiles;
 ofstream csvFile;
 int cameraCnt;
-string serialNumber = "";
+string serialNumber;
 
 // mutex lock for parallel threads
 HANDLE ghMutex;
@@ -72,7 +73,7 @@ triggerType chosenTrigger = SOFTWARE;
 These functions getCurrentDateTime and removeSpaces get the system time and transform it to readable format. The output string is used as timestamp for new filenames.
 =================
 */
-string removeSpaces(string word) 
+string removeSpaces(string word)
 {
 	string newWord;
 	for (int i = 0; i < word.length(); i++) {
@@ -139,7 +140,7 @@ int CreateFiles(string serialNumber, int cameraCnt)
 	string tmpFilename;
 	string csvFilename;
 
-	sstream_tmpFilename << csDestinationDirectory << directory + getCurrentDateTime() + "_" + serialNumber << "_file" << cameraCnt << ".tmp";
+	sstream_tmpFilename << csDestinationDirectory << getCurrentDateTime() + "_" + serialNumber << "_file" << cameraCnt << ".tmp";
 	sstream_tmpFilename >> tmpFilename;
 	//filenames.push_back(tmpFilename); // TODO: why save the name if file is saved in cameraFiles?
 
@@ -152,7 +153,7 @@ int CreateFiles(string serialNumber, int cameraCnt)
 
 	if (cameraCnt == 0)
 	{
-		sstream_csvFile << csDestinationDirectory << directory + getCurrentDateTime() << ".csv";
+		sstream_csvFile << csDestinationDirectory << getCurrentDateTime() << ".csv";
 		sstream_csvFile >> csvFilename;
 		//filenames.push_back(csvFilename); not pushback in filenames!
 		//csvFile.push_back(csvFilename);
@@ -395,7 +396,6 @@ int ConfigureStrobe(CameraPtr pCam, INodeMap& nodeMap)
 	}
 	catch (Spinnaker::Exception& e)
 	{
-		// Retrieve device serial number for filename
 		cout << "Error: " << e.what() << endl;
 		result = -1;
 	}
@@ -482,164 +482,125 @@ The function AcquireImages runs in parallel threads and grabs images from each c
 */
 DWORD WINAPI AcquireImages(LPVOID lpParam)
 {
-	// RUN FUNCTINO IN LOCKED THREADS
-	// Start mutex_lock moved to top of function
-	DWORD dwCount = 0, dwWaitResult;
-	dwWaitResult = WaitForSingleObject(
-		ghMutex,    // handle to mutex
-		INFINITE);  // no time-out interval
+	// START function in UN-locked thread
+	
+	// Initialize camera
+		CameraPtr pCam = *((CameraPtr*)lpParam);
+		pCam->Init();
 
-	switch (dwWaitResult)
-	{
-		// The thread got ownership of the mutex
-		case WAIT_OBJECT_0:
-			// start function in locked thread
-			CameraPtr pCam = *((CameraPtr*)lpParam);
-			try
+		// Clean Buffer acquiring idle images
+		pCam->BeginAcquisition();
+		try
+		{
+			for (unsigned int imagesInBuffer = 0; imagesInBuffer < numBuffers; imagesInBuffer++)
 			{
-				// Retrieve TL device nodemap
-				INodeMap& nodeMapTLDevice = pCam->GetTLDeviceNodeMap();
+				// first numBuffer images are descarted
+				ImagePtr pResultImage = pCam->GetNextImage();
+				char* imageData = static_cast<char*>(pResultImage->GetData());
+				pResultImage->Release();
+			}
+		}
+		catch (Spinnaker::Exception& e)
+		{
+			cout << "Error: " << e.what() << endl;
+			return 1;
+		}
 
-				// Retrieve device serial number for filename
-				CStringPtr ptrStringSerial = pCam->GetTLDeviceNodeMap().GetNode("DeviceSerialNumber");
+		pCam->EndAcquisition();
 
-				if (IsAvailable(ptrStringSerial) && IsReadable(ptrStringSerial))
-				{
-					serialNumber = ptrStringSerial->GetValue();
-				}
-				//cout << "[" << serialNumber << "] " << "IMAGE ACQUISITION THREAD STARTING" << endl;
+		// Start actual image acquisition
+		pCam->BeginAcquisition();
 
-				// Initialize camera
-				pCam->Init();
-				INodeMap& nodeMap = pCam->GetNodeMap();
+		// Initialize empty parameters outside of locked case
+		ImagePtr pResultImage;
+		char* imageData;
+		string deviceUser_ID;
+		int firstFrame = 1;
 
-				// Begin acquiring idle images to clear buffer before recording
-				pCam->BeginAcquisition();
+		// Retrieve and save images in while loop until manual ESC press
+		while (GetAsyncKeyState(VK_ESCAPE) == 0)
+		{
+			// start lock here
+			// Start mutex_lock moved to top of function
+			DWORD dwCount = 0, dwWaitResult;
+			dwWaitResult = WaitForSingleObject(
+				ghMutex,    // handle to mutex
+				INFINITE);  // no time-out interval
+			switch (dwWaitResult)
+			{
+				// The thread got ownership of the mutex
+			case WAIT_OBJECT_0:
+
 				try
 				{
-					for (unsigned int imagesInBuffer = 0; imagesInBuffer < numBuffers; imagesInBuffer++)
+					// Identify camera in locked thread
+					INodeMap& nodeMapTLDevice = pCam->GetTLDeviceNodeMap();
+					CStringPtr ptrStringSerial = pCam->GetTLDeviceNodeMap().GetNode("DeviceSerialNumber");
+					if (IsAvailable(ptrStringSerial) && IsReadable(ptrStringSerial))
 					{
-						// first numBuffer images are descarted
-						ImagePtr pResultImage = pCam->GetNextImage(100);
-						pResultImage->Release();
+						serialNumber = ptrStringSerial->GetValue();
 					}
-				}
-				catch (Exception& e)
-				{
-				}
-				pCam->EndAcquisition();
-				
-				// Start actual image acquisition
-				pCam->BeginAcquisition();
-				cout << "Camera [" << serialNumber << "] " << "Started recording..." << endl;
 
-				// Identify camera in thread by DeviceUserID
-				CStringPtr ptrDeviceUserId = nodeMap.GetNode("DeviceUserID");
-				if (!IsAvailable(ptrDeviceUserId) || !IsWritable(ptrDeviceUserId))
-				{
-					cout << "Unable to get node ptrDeviceUserId. Aborting..." << endl << endl;
-					return -1;
-				}
-
-				// if thread lock not working move back to while loop to assign every frame
-				string deviceUser_ID = ptrDeviceUserId->GetValue();
-				cameraCnt = atoi(deviceUser_ID.c_str());
-
-				// Retrieve and save images in while loop until manual ESC press
-				while (GetAsyncKeyState(VK_ESCAPE) == 0)
-				{
-					try
+					INodeMap& nodeMap = pCam->GetNodeMap();
+					CStringPtr ptrDeviceUserId = pCam->GetNodeMap().GetNode("DeviceUserID");
+					if (IsAvailable(ptrDeviceUserId) && IsReadable(ptrDeviceUserId))
 					{
-						// Retrieve next image and ensure image completion
-						ImagePtr pResultImage = pCam->GetNextImage(); // waiting time for NextImage indefinite
-						
-						if (pResultImage->IsIncomplete())
-						{
-							cout << "[" << serialNumber << "] " << "Image incomplete with image status " << pResultImage->GetImageStatus() << "..." << endl << endl;
-						}
-
-						else
-						{
-							// Acquire the image buffer to write to a file
-							char* imageData = static_cast<char*>(pResultImage->GetData());
-							
-							// Do the writing to assigned cameraFile
-							cameraFiles[cameraCnt].write(imageData, pResultImage->GetImageSize());
-							csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << endl;
-
-							// Check if the writing is successful
-							if (!cameraFiles[cameraCnt].good())
-							{
-								cout << "Error writing to file for camera " << cameraCnt << " !" << endl;
-								return -1;
-							}
-
-							// Release image
-							pResultImage->Release();
-
-							/* // Start mutex_lock moved to top of function
-							DWORD dwCount = 0, dwWaitResult;
-							dwWaitResult = WaitForSingleObject(
-								ghMutex,    // handle to mutex
-								INFINITE);  // no time-out interval
-
-							switch (dwWaitResult)
-							{
-								// The thread got ownership of the mutex
-								case WAIT_OBJECT_0:
-									// Do the writing to assigned cameraFile
-									cameraFiles[cameraCnt].write(imageData, pResultImage->GetImageSize());
-									csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << endl;
-
-									// Check if the writing is successful
-									if (!cameraFiles[cameraCnt].good())
-									{
-										cout << "Error writing to file for camera " << cameraCnt << " !" << endl;
-										return -1;
-									}
-
-									// Release image								pResultImage->Release();
-									ReleaseMutex(ghMutex); 			
-									break;
-
-								// The thread got ownership of an abandoned mutex
-								// The database is in an indeterminate state
-								case WAIT_ABANDONED:
-									cout << "wait abandoned" << endl;
-									//return FALSE;
-							} */
-						}
+						deviceUser_ID = ptrDeviceUserId->GetValue();
+						cameraCnt = atoi(deviceUser_ID.c_str());
 					}
-					catch (Spinnaker::Exception& e)
+					
+					if (firstFrame == 1)
 					{
-						cout << "[" << serialNumber << "] " << "Error: " << e.what() << endl;
+						cout << "Camera [" << serialNumber << "] " << "Started recording with ID [" << cameraCnt << " ]..." << endl;
+					}
+					
+					firstFrame = 0;
+					
+					// Retrieve next image and ensure image completion
+					pResultImage = pCam->GetNextImage(); // waiting time for NextImage indefinite
+
+					// Acquire the image buffer to write to a file
+					imageData = static_cast<char*>(pResultImage->GetData());
+
+					// Do the writing to assigned cameraFile
+					cameraFiles[cameraCnt].write(imageData, pResultImage->GetImageSize());
+					csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << endl;
+
+					// Check if the writing is successful
+					if (!cameraFiles[cameraCnt].good())
+					{
+						cout << "Error writing to file for camera " << cameraCnt << " !" << endl;
 						return -1;
 					}
+
+					// Release image
+					pResultImage->Release();
+
 				}
+				catch (Spinnaker::Exception& e)
+				{
+					cout << "Error: " << e.what() << endl;
+					return -1;
+				}
+				ReleaseMutex(ghMutex);
+				break;
 
-				// End acquisition
-				pCam->EndAcquisition();
-				cameraFiles[cameraCnt].close();
-				csvFile.close();
-
-				// Deinitialize camera
-				pCam->DeInit();
-
-				return 1;
+			// The thread got ownership of an abandoned mutex
+			case WAIT_ABANDONED:
+				cout << "wait abandoned" << endl;
 			}
-			catch (Spinnaker::Exception& e)
-			{
-				cout << "Error: " << e.what() << endl;
-				return 0;
-			}
+		}
+		// End acquisition
+		pCam->EndAcquisition();
+		cameraFiles[cameraCnt].close();
+		csvFile.close();
 
-	ReleaseMutex(ghMutex); 			
-	break;
+		// TODO: How to get last frames for secondary camera due to time lag
+				
+		// Deinitialize camera
+		pCam->DeInit();
 
-	// The thread got ownership of an abandoned mutex
-	case WAIT_ABANDONED:
-		cout << "wait abandoned" << endl;
-	}
+		return 1;
 }
 
 /*
@@ -647,7 +608,7 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 The function InitializeMultipleCameras bundles the initialization process for all cameras on the system. It is called in RecordMultipleCameraThreads and starts a loop to set Buffer, Strobe, Exposure and Trigger, as well as to create binary files for each camera.
 =================
 */
-int InitializeMultipleCameras(CameraList camList, CameraPtr * pCamList, unsigned int camListSize)
+int InitializeMultipleCameras(CameraList camList, CameraPtr* pCamList, unsigned int camListSize)
 {
 	int result = 0;
 
@@ -682,9 +643,9 @@ int InitializeMultipleCameras(CameraList camList, CameraPtr * pCamList, unsigned
 			sstreamDeviceUserID << i;
 			string DeviceUserID = sstreamDeviceUserID.str();
 			ptrDeviceUserId->SetValue(DeviceUserID.c_str());
-			cameraCnt = atoi(DeviceUser_ID.c_str());
+			cameraCnt = atoi(DeviceUserID.c_str());
 
-			cout << endl << endl << "[" << serialNumber << "] " << "*** Camera Initialization ***" << " ID: [" << DeviceUserID <<"]" << endl;
+			cout << endl << endl << "[" << serialNumber << "] " << "*** Camera Initialization ***" << " ID: [" << DeviceUserID << "]" << endl;
 
 			if (serialNumber == triggerCam)  // if primary camera as defined on top
 			{
@@ -817,7 +778,7 @@ int main(int /*argc*/, char** /*argv*/)
 	// Test permission to write to directory specified on top
 	stringstream testfilestream;
 	string testfilestring;
-	testfilestream << directory + "test.txt";
+	testfilestream << "test.txt";
 	testfilestream >> testfilestring;
 
 	const char* testfile = testfilestring.c_str();
