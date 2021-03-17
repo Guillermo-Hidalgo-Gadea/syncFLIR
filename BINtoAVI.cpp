@@ -1,11 +1,13 @@
 /*
 ====================================================================================================
 This script was developed with close assistance by the FLIR Systems Support Team, and is adapted
-from the examples SavetoAvi.cpp and AcquisitionMultipleThread.cpp.
+from examples in FLIR Systems/Spinnaker/src. Copyright from FLIR Integrated Imaging Solutions, Inc. applies. 
+
 After recording hardware triggered, synchronized images to binary files in the previous script,
 this file converts the binary file back to a vector of images and creates a video file.
-Note that FrameRate and imageHeight and imageWidth are hardcoded from previous recording settings.
-Install Spinnaker SDK before using this script.
+Note that FrameRate and imageHeight and imageWidth are hardcoded from previous recording settings
+and need to be adapted before compiling the executable file. Install Spinnaker SDK before using this script.
+
 MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com
 Sourcecode: https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR
 ====================================================================================================
