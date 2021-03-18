@@ -168,7 +168,7 @@ int CreateFiles(string serialNumber, int cameraCnt)
 
 		// Create temporary files
 		csvFile.open(csvFilename);
-		csvFile << "Frame ID" << "," << "Timestamp" << "," << " Serial number" << "," << "File number" << endl;
+		csvFile << "FrameID" << "," << "Timestamp" << "," << "SerialNumber" << "," << "FileNumber" << endl;
 	}
 	return result;
 }
