@@ -14,13 +14,14 @@ Sourcecode: https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR
 """
 
 # Importing libraries
-import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import datetime
+import time
+import matplotlib.pyplot as plt
 from tkinter import filedialog
 from scipy import stats
 from reportlab.pdfgen import canvas
-from datetime import date
 
 # Choose CVS File from Dialog Box
 logfilepath = filedialog.askopenfilenames(title='Choose the csv log file to analyze')
@@ -28,7 +29,7 @@ logfile = pd.read_csv(logfilepath[0])
 print(logfile)
 
 # Initialize PDF
-Date = str(date.today())
+Date = str(datetime.date.today())
 fileName = 'DiagnosticReport_'+ logfilepath[0][-18:-4] +'.pdf'
 documentTitle = 'Diagnostic Report syncFLIR'
 title = 'Diagnostic Report'
@@ -47,6 +48,7 @@ pdf.drawRightString(500,790, Date)
 pdf.setFont("Times-Bold",16)
 pdf.drawCentredString(290,770, title) #(x = [0, 600], x = [0, 800])
 pdf.drawCentredString(290, 750, subTitle)
+pdf.drawInlineImage('logo.png', 40, 750, width = 70, height = 70)
 pdf.line(50, 720, 550, 720)
 
 intro = pdf.beginText(70, 700)
@@ -58,44 +60,53 @@ pdf.line(50, 640, 550, 640)
 
 # Split logfile by Serial number
 grouped = logfile.groupby(logfile.SerialNumber)
-grouped.grouper.levels[0]
-grouped.grouper.ngroups
 
+# positioning for output text and figures in pdf file
 htext = 610
 wtext = 50
 whist = 30
-himage = 280
+himage = 270
 
 for serial in grouped.grouper.levels[0]:
     # Diagnose recording
     group = grouped.get_group(serial)
-    maxFrameID = group['FrameID'].iloc[-1]
-    starttime = group['Timestamp'].iloc[0]
-    endtime = group['Timestamp'].iloc[-1]
-    timespan = (endtime-starttime)/1e9
-    group['Timestamp'] = (group['Timestamp'] - starttime)/1e9
-    group['BetwFramesInt'] = group['Timestamp'].diff()
-    fps = 1/group.BetwFramesInt.mean()
-    critFPS = group.BetwFramesInt[group.BetwFramesInt > .04 ].count()
+    group.sort_values(by=['FrameID'], inplace=True)
+    lastFrame = group['FrameID'].iloc[-1]
+    timespan = (group['Timestamp'].iloc[-1]-group['Timestamp'].iloc[0])/1e9
+    group['IntFramesInt'] = group['Timestamp'].diff()/1e9
+    group['FrameSkip'] = group['FrameID'].diff()-1
+    timespan = (group['Timestamp'].iloc[-1]-group['Timestamp'].iloc[0])/1e9
+    avgfps = lastFrame/timespan
+    meanfps = 1/group.IntFramesInt.mean()
+    critFPS = group.IntFramesInt[group.IntFramesInt > .04].count()
+    skipFrames = group.FrameSkip.sum()
+    missingFrames = logfile['FrameID'].max()-lastFrame
+
     # save output
-    serialnum = 'Serial number: '+ str(serial)
-    numframes = 'Frames recorded: ' + str(maxFrameID)
-    duration = 'Recording duration: ' +str("{:.2f}".format(timespan)) + ' sec'
-    avgfps = 'Average FPS: ' +str("{:.2f}".format(fps))
-    critical = 'Number of critical frames: ' +str(critFPS)
+    serialnum = 'Camera:         #' + str(serial)
+    numframes = 'Total frames:    ' + str(lastFrame)
+    duration =  'Recording time:  ' + time.strftime("%M:%S",time.gmtime(timespan))
+    avgfps =    'Frames/Time:     ' + str("{:.2f}".format(avgfps))
+    meanfps =   'Mean FPS:        ' + str("{:.2f}".format(meanfps))
+    critical =  'Critical frames: ' + str(critFPS)
+    skipped =   'Skipped frames:  ' + str(int(skipFrames))
+    missing =   'Missing frames:  ' + str(int(missingFrames))
 
     textLinesReport = [
         serialnum,
         numframes,
         duration,
         avgfps,
-        critical]
+        meanfps,
+        critical,
+        skipped,
+        missing]
 
     # Plot FPS time series
     plt.rcParams['font.size'] = '12'
     timeseries = 'timeseries-' + str(serial) + '.png'
     fig, ax = plt.subplots()
-    ax = group.BetwFramesInt.plot(marker='.', alpha=0.2, linestyle='solid', figsize=(10, 2))
+    ax = group.IntFramesInt.plot(marker='.', alpha=0.3, linestyle='solid', figsize=(10, 2))
     ax.axhline(y=.04, color='r', linestyle='-', lw=2)
     plt.text(0,0.045,'FPS = 25',color='r',rotation=0)
     ax.axhline(y=.02, color='y', linestyle='-', lw=2)
@@ -111,7 +122,7 @@ for serial in grouped.grouper.levels[0]:
     # Plot FPS Histogram
     plt.rcParams['font.size'] = '34'
     histogram = 'histogram-' + str(serial) + '.png'
-    res = stats.relfreq(group.BetwFramesInt.dropna(), numbins=60)
+    res = stats.relfreq(group.IntFramesInt.dropna(), numbins=30)
     x = res.lowerlimit + np.linspace(0, res.binsize*res.frequency.size, res.frequency.size)
     fig, ax = plt.subplots(figsize = (18,12))
     ax.bar(x, res.frequency, width=res.binsize)
@@ -139,13 +150,13 @@ for serial in grouped.grouper.levels[0]:
     pdf.drawInlineImage (timeseries, 0, himage, width=600, height = 120)
 
     # wirte histograms to pdf
-    pdf.drawInlineImage (histogram, whist, 420, width=180, height = 120)
+    pdf.drawInlineImage (histogram, whist, 390, width=180, height = 120)
 
-    # move next text to the right 
+    # move next text to the right
     wtext = wtext + 180
     # move histogram to the right
     whist = whist + 180
     # move image down
-    himage = himage - 130
+    himage = himage - 125
 
 pdf.save()
