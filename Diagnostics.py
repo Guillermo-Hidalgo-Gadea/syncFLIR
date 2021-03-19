@@ -51,6 +51,7 @@ pdf.drawCentredString(290, 750, subTitle)
 pdf.drawInlineImage('logo.png', 40, 750, width = 70, height = 70)
 pdf.line(50, 720, 550, 720)
 
+
 intro = pdf.beginText(70, 700)
 intro.setFont("Times-Roman",12)
 for line in textLinesIntro:
@@ -105,16 +106,16 @@ for serial in grouped.grouper.levels[0]:
     # Plot FPS time series
     plt.rcParams['font.size'] = '12'
     timeseries = 'timeseries-' + str(serial) + '.png'
-    fig, ax = plt.subplots()
-    ax = group.IntFramesInt.plot(marker='.', alpha=0.3, linestyle='solid', figsize=(10, 2))
+    fig, ax = plt.subplots(figsize=(10, 2))
+    ax.plot(group.FrameID, group.IntFramesInt, marker='.', alpha=0.3, color = 'black', linestyle='solid')
     ax.axhline(y=.04, color='r', linestyle='-', lw=2)
     plt.text(0,0.045,'FPS = 25',color='r',rotation=0)
     ax.axhline(y=.02, color='y', linestyle='-', lw=2)
     plt.text(0,0.025,'FPS = 50',color='y',rotation=0)
     ax.axhline(y=.005, color='g', linestyle='-', lw=2)
     plt.text(0,.01,'FPS = 200',color='g',rotation=0)
-    plt.xlabel('Frame ID')
     plt.ylabel('Inter Frame Interval')
+    plt.xlabel('Frame ID')
     plt.title(serial)
     plt.savefig(timeseries)
     #plt.show()
@@ -122,7 +123,7 @@ for serial in grouped.grouper.levels[0]:
     # Plot FPS Histogram
     plt.rcParams['font.size'] = '34'
     histogram = 'histogram-' + str(serial) + '.png'
-    res = stats.relfreq(group.IntFramesInt.dropna(), numbins=30)
+    res = stats.relfreq(group.IntFranesInt.dropna(), numbins=30)
     x = res.lowerlimit + np.linspace(0, res.binsize*res.frequency.size, res.frequency.size)
     fig, ax = plt.subplots(figsize = (18,12))
     ax.bar(x, res.frequency, width=res.binsize)
