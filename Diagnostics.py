@@ -72,11 +72,10 @@ for serial in grouped.grouper.levels[0]:
     # Diagnose recording
     group = grouped.get_group(serial)
     group.sort_values(by=['FrameID'], inplace=True)
-    lastFrame = group['FrameID'].iloc[-1]
-    timespan = (group['Timestamp'].iloc[-1]-group['Timestamp'].iloc[0])/1e9
+    lastFrame = group['FrameID'].max()
+    timespan = (group['Timestamp'].max()-group['Timestamp'].min())/1e9
     group['IntFramesInt'] = group['Timestamp'].diff()/1e9
     group['FrameSkip'] = group['FrameID'].diff()-1
-    timespan = (group['Timestamp'].iloc[-1]-group['Timestamp'].iloc[0])/1e9
     avgfps = lastFrame/timespan
     meanfps = 1/group.IntFramesInt.mean()
     critFPS = group.IntFramesInt[group.IntFramesInt > .04].count()
@@ -123,7 +122,7 @@ for serial in grouped.grouper.levels[0]:
     # Plot FPS Histogram
     plt.rcParams['font.size'] = '34'
     histogram = 'histogram-' + str(serial) + '.png'
-    res = stats.relfreq(group.IntFranesInt.dropna(), numbins=30)
+    res = stats.relfreq(group.IntFramesInt.dropna(), numbins=30)
     x = res.lowerlimit + np.linspace(0, res.binsize*res.frequency.size, res.frequency.size)
     fig, ax = plt.subplots(figsize = (18,12))
     ax.bar(x, res.frequency, width=res.binsize)

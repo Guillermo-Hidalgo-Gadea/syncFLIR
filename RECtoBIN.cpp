@@ -109,6 +109,8 @@ string getCurrentDateTime()
 		currentDateTime << "0" << ptmNow->tm_mday << " ";
 	else
 		currentDateTime << ptmNow->tm_mday << " ";
+	//spacer
+	currentDateTime << "_";
 	//hour
 	if (ptmNow->tm_hour < 10) //Fill in the leading 0 if less than 10
 		currentDateTime << "0" << ptmNow->tm_hour;
