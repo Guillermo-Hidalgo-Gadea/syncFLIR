@@ -18,3 +18,5 @@ A synchronized multiview video recording setup using FLIR cameras and Spinnaker 
 ![BINtoAVI terminal output](https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR/blob/main/archive/screenshot2.png)
 
 3) To play the video use VideoPlayer.py 
+
+4) Pocess your recording logfile saved as csv with the Diagnostics.py program
