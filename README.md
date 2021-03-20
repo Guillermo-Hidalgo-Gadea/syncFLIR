@@ -20,4 +20,4 @@ A synchronized multiview video recording setup using FLIR cameras and Spinnaker 
 3) To play the video use VideoPlayer.py 
 
 4) Pocess your recording logfile saved as csv with the Diagnostics.py program
-![Diagnostics output](https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR/blob/main/archive/screenshot2.png)
+![Diagnostics output](https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR/blob/main/DiagnosticReport_20210317142329.pdf)
