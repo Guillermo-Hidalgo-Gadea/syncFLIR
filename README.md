@@ -19,5 +19,7 @@ A synchronized multiview video recording setup using FLIR cameras and Spinnaker 
 
 3) To play the video use VideoPlayer.py 
 
-4) Pocess your recording logfile saved as csv with the Diagnostics.py program
+4) To pocess your recording logfile run the Diagnostics.py program
+
+Check the diagnostics report for missing and skipped frames between cameras
 ![Diagnostics output](https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR/blob/main/archive/DiagnosticReport_20210317142329.png)
