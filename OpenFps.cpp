@@ -42,7 +42,7 @@ using namespace std;
 // CONFIG FILES FOR RECORDING
 const string triggerCam = "20323052"; // serial number of primary camera
 const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/FPS)
-const double FPS = 185.0; // exposure time in frames per second
+const double FPS = 200.0; // exposure time in frames per second
 double compression = 1.0; // TODO: compression
 
 // Files are saved to working directory, place the exe file in the right folder
@@ -372,6 +372,7 @@ int ConfigureExposure(INodeMap& nodeMap)
 			cout << "Unable to get node AcquisitionFrameRate. Aborting..." << endl << endl;
 			return -1;
 		}
+		ptrAcquisitionFrameRate->SetValue(ptrAcquisitionFrameRate->GetMax());
 		double testAcqFrameRate = ptrAcquisitionFrameRate->GetValue();
 		cout << "Acquisition Frame Rate is  : " << testAcqFrameRate << endl;
 		cout << "Maximum Acquisition Frame Rate is  : " << ptrAcquisitionFrameRate->GetMax() << endl;
