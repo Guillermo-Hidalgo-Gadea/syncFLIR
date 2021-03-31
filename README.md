@@ -27,3 +27,6 @@ To further optimize processing speed, cameras dump their recording to a binary f
 
 Check the diagnostics report for missing and skipped frames between cameras
 ![Diagnostics output](https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR/blob/main/archive/DiagnosticReport_20210317142329.png)
+
+## Funding
+The development of syncFLIR was supported by the German Research Foundation DFG in the context of funding the Research Training Group “Situated Cognition” (GRK 2185/1). *Original: Gefördert durch die Deutsche Forschungsgemeinschaft (DFG) - Projektnummer GRK 2185/1*.
