@@ -23,17 +23,18 @@ from tkinter import filedialog
 from scipy import stats
 from reportlab.pdfgen import canvas
 
+
 # Choose CVS File from Dialog Box
 logfilepath = filedialog.askopenfilenames(title='Choose the csv log file to analyze')
 logfile = pd.read_csv(logfilepath[0])
-print(logfile)
+#print(logfile)
 
 # Initialize PDF
 Date = str(datetime.date.today())
-fileName = 'DiagnosticReport_'+ logfilepath[0][-18:-4] +'.pdf'
+fileName = logfilepath[0][0:-19]+ 'DiagnosticReport_'+ logfilepath[0][-19:-4] +'.pdf'
 documentTitle = 'Diagnostic Report syncFLIR'
 title = 'Diagnostic Report'
-subTitle = 'Recording: ' + logfilepath[0][-18:-4]
+subTitle = 'Recording: ' + logfilepath[0][-19:-4]
 textLinesIntro = [
 'This diagnostics report provides visual feedback for the video recording mentioned above,',
 'as extracted from the recording logfile generated with the RECtoBIN executable. Should the',
