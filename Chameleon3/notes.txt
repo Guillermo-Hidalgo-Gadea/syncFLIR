@@ -1,0 +1,99 @@
+Preliminary debugging shows incompatibility of sourcecode with older Chameleon3 cameras.
+Nodes such as Framerate are not writeable and need further steps during setup.
+
+TODO:
+1. AcqisitionFrameRateEnable  aktivieren (oder AcqisitionFrameRateEnabled) 
+2. AcquisitionFrameRateAuto to Off 
+dann AcquisitionFrameRate wird writable 
+
+Ich denke das Snippet hier ist, was man braucht um AcquisitionFrameRate writable zu kriegen: 
+
+
+//Enable Aquisition Frame Rate Control Enabled
+
+        CBooleanPtr ptrAcquisitionFrameRateControlEnabled = nodeMap.GetNode("AcquisitionFrameRateEnabled");
+        if (!IsAvailable(ptrAcquisitionFrameRateControlEnabled) || !IsWritable(ptrAcquisitionFrameRateControlEnabled))
+        {
+            cout << "Unable to set AcquisitionFrameRateControlEnabled (enum retrieval). Aborting..." << endl << endl;
+            return -1;
+        }
+        ptrAcquisitionFrameRateControlEnabled->SetValue(true);
+        cout << "Acquisition Frame Rate Enabled set to " << ptrAcquisitionFrameRateControlEnabled->GetValue() << endl;
+// Set Frame Rate Auto to Off 
+        CEnumerationPtr ptrFrameRateAuto = nodeMap.GetNode("AcquisitionFrameRateAuto");
+        if (!IsAvailable(ptrFrameRateAuto) || !IsWritable(ptrFrameRateAuto))
+        {
+            cout << "Unable to set FrameRateAuto  (enum retrieval). Aborting..." << endl << endl;
+            return -1;
+        }
+        // Retrieve entry node from enumeration node
+        CEnumEntryPtr ptrFrameRateAutoOff = ptrFrameRateAuto->GetEntryByName("Off");
+        if (!IsAvailable(ptrFrameRateAutoOff) || !IsReadable(ptrFrameRateAutoOff))
+        {
+            cout << "Unable to set Frame Rate to Off (entry retrieval). Aborting..." << endl << endl;
+            return -1;
+        }
+        // Retrieve integer value from entry node
+        int64_t framerateAutoOff = ptrFrameRateAutoOff->GetValue();
+        // Set integer value from entry node as new value of enumeration node
+        ptrFrameRateAuto->SetIntValue(framerateAutoOff);
+        cout << "Frame Rate Auto set to Off..." << endl;
+        // set the desired Frame Rate 
+        CFloatPtr ptrAcquisitionFrameRate =nodeMap.GetNode("AcquisitionFrameRate");
+        if (!IsAvailable(ptrAcquisitionFrameRate) || !IsWritable(ptrAcquisitionFrameRate))
+        {
+            cout << "Unable to set Acquisition Frame Rate   (enum retrieval). Aborting..." << endl << endl;
+            return -1;
+        }
+        cout << "Maximum Frame Rate is " << ptrAcquisitionFrameRate->GetMax() << endl;
+        cout << "Minimum Frame Rate is " << ptrAcquisitionFrameRate->GetMin() << endl;
+        ptrAcquisitionFrameRate->SetValue(ptrAcquisitionFrameRate->GetMax());
+        cout << "Acquisition Frame rate set to  " << ptrAcquisitionFrameRate->GetValue() << endl;
+
+//Exposure Auto to Off
+
+    CEnumerationPtr ptrExposureAuto = nodeMap.GetNode("ExposureAuto");
+        if (!IsAvailable(ptrExposureAuto) || !IsWritable(ptrExposureAuto))
+        {
+            cout << "Unable to disable automatic exposure (node retrieval). Aborting..." << endl << endl;
+            return -1;
+        }
+        
+        CEnumEntryPtr ptrExposureAutoOff = ptrExposureAuto->GetEntryByName("Off");
+        if (!IsAvailable(ptrExposureAutoOff) || !IsReadable(ptrExposureAutoOff))
+        {
+            cout << "Unable to disable automatic exposure (enum entry retrieval). Aborting..." << endl << endl;
+            return -1;
+        }
+        
+        ptrExposureAuto->SetIntValue(ptrExposureAutoOff->GetValue());
+        
+        cout << "Automatic exposure disabled..." << endl;
+        //
+        // Set exposure time manually; exposure time recorded in microseconds
+        //
+        // *** NOTES ***
+        // The node is checked for availability and writability prior to the 
+        // setting of the node. Further, it is ensured that the desired exposure 
+        // time does not exceed the maximum. Exposure time is counted in 
+        // microseconds. This information can be found out either by 
+        // retrieving the unit with the GetUnit() method or by checking SpinView.
+        // 
+        CFloatPtr ptrExposureTime = nodeMap.GetNode("ExposureTime");
+        if (!IsAvailable(ptrExposureTime) || !IsWritable(ptrExposureTime))
+        {
+            cout << "Unable to set exposure time. Aborting..." << endl << endl;
+            return -1;
+        }
+        
+        // Ensure desired exposure time does not exceed the maximum
+        const double exposureTimeMax = ptrExposureTime->GetMax();
+        double exposureTimeToSet = 2000000.0;
+        if (exposureTimeToSet > exposureTimeMax)
+        {
+            exposureTimeToSet = exposureTimeMax;
+        }
+        
+        ptrExposureTime->SetValue(exposureTimeToSet);
+        
+        cout << "Exposure time set to " << exposureTimeToSet << " us..." << endl << endl;
