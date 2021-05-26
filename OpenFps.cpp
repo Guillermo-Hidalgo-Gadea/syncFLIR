@@ -666,54 +666,8 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 			cout << "wait abandoned" << endl;
 		}
 	}
-	// Stop acquisition
-	
-	// Disable all trigger modes
-	CEnumerationPtr ptrTriggerMode = nodeMap.GetNode("TriggerMode");
-	if (!IsAvailable(ptrTriggerMode) || !IsReadable(ptrTriggerMode))
-	{
-		cout << "Unable to disable trigger mode (node retrieval). Aborting..." << endl;
-		return -1;
-	}
-
-	CEnumEntryPtr ptrTriggerModeOff = ptrTriggerMode->GetEntryByName("Off");
-	if (!IsAvailable(ptrTriggerModeOff) || !IsReadable(ptrTriggerModeOff))
-	{
-		cout << "Unable to disable trigger mode (enum entry retrieval). Aborting..." << endl;
-		return -1;
-	}
-	ptrTriggerMode->SetIntValue(ptrTriggerModeOff->GetValue());
-	cout << "Recording stopped for "<< "Camera [" << serialNumber << "]" << endl;
-	
-	// Catch the remaining images in buffer
-	try
-	{
-		for (unsigned int imagesInBuffer = 0; imagesInBuffer < numBuffers; imagesInBuffer++)
-		{
-			// Get images from imagesInBuffer
-			ImagePtr pResultImage = pCam->GetNextImage();
-			imageData = static_cast<char*>(pResultImage->GetData());
-			
-			// Do the writing to assigned cameraFile
-			cameraFiles[cameraCnt].write(imageData, pResultImage->GetImageSize());
-			csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << endl;
-
-			// Check if the writing is successful
-			if (!cameraFiles[cameraCnt].good())
-			{
-				cout << "Error writing to file for camera " << cameraCnt << " !" << endl;
-				return -1;
-			}
-			
-			// Release image
-			pResultImage->Release();
-		}
-	}
-	catch (Spinnaker::Exception& e)
-	{
-		cout << "Error: " << e.what() << endl;
-		return 1;
-	}
+	// TODO: primary and secondary cameras have a lag. Missing frames at the end or the beginning of the recording?
+	// TODO: use stopped-trigger event to break loop in secondary machines
 	
 	// End acquisition
 	pCam->EndAcquisition();
