@@ -1,10 +1,10 @@
 /*
 ====================================================================================================
 This script was developed with close assistance by the FLIR Systems Support Team, and is adapted
-from examples in FLIR Systems/Spinnaker/src. Copyright from FLIR Integrated Imaging Solutions, Inc. applies. 
+from examples in FLIR Systems/Spinnaker/src. Copyright from FLIR Integrated Imaging Solutions, Inc. applies.
 
 This program initializes and configures FLIR cameras in a hardware trigger setup in wich the primary camera
-triggers all other secondary cameras. Image acquisition runs in parallel threads, locked during grabbing 
+triggers all other secondary cameras. Image acquisition runs in parallel threads, locked during grabbing
 and writing, and saves data to binary files to save time in the between frames intervals.
 
 The .tmp output file has to be converted to AVI with a different code TMPtoAVI.
@@ -42,6 +42,8 @@ using namespace std;
 // CONFIG FILES FOR RECORDING
 const string triggerCam = "20323052"; // serial number of primary camera
 const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/FPS)
+const double FPS = 200.0; // exposure time in frames per second
+// TODO save only Mono image data?
 double compression = 1.0; // TODO: compression
 
 // Files are saved to working directory, place the exe file in the right folder
@@ -371,6 +373,7 @@ int ConfigureExposure(INodeMap& nodeMap)
 			cout << "Unable to get node AcquisitionFrameRate. Aborting..." << endl << endl;
 			return -1;
 		}
+		ptrAcquisitionFrameRate->SetValue(ptrAcquisitionFrameRate->GetMax());
 		double testAcqFrameRate = ptrAcquisitionFrameRate->GetValue();
 		cout << "Acquisition Frame Rate is  : " << testAcqFrameRate << endl;
 		cout << "Maximum Acquisition Frame Rate is  : " << ptrAcquisitionFrameRate->GetMax() << endl;
@@ -383,7 +386,20 @@ int ConfigureExposure(INodeMap& nodeMap)
 			return -1;
 		}
 		double testResultingAcqFrameRate = ptrResultingAcquisitionFrameRate->GetValue();
-		cout << "Resulting acquisition Frame Rate is  : " << std::fixed << round(testResultingAcqFrameRate) << endl;
+		double FPSToSet = FPS;
+		//if FPS > resulting then set FPS to max available
+		if (FPSToSet > testResultingAcqFrameRate)
+		{
+			FPSToSet = testResultingAcqFrameRate;
+			cout << "Chosen FPS to high, setting to max" << endl;
+		}
+		// set chosen FPS
+		//ptrResultingAcquisitionFrameRate->SetValue(FPSToSet);
+		ptrAcquisitionFrameRate->SetValue(FPSToSet);
+		
+		double NewFrameRate = ptrAcquisitionFrameRate->GetValue();
+		cout << "New acquisition Frame Rate is  : " << NewFrameRate << endl;
+		
 	}
 	catch (Spinnaker::Exception& e)
 	{
@@ -650,12 +666,13 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 			cout << "wait abandoned" << endl;
 		}
 	}
+	// TODO: primary and secondary cameras have a lag. Missing frames at the end or the beginning of the recording?
+	// TODO: use stopped-trigger event to break loop in secondary machines
+	
 	// End acquisition
 	pCam->EndAcquisition();
 	cameraFiles[cameraCnt].close();
 	csvFile.close();
-
-	// TODO: How to get last frames for secondary camera due to time lag
 
 	// Deinitialize camera
 	pCam->DeInit();
@@ -907,7 +924,8 @@ int main(int /*argc*/, char** /*argv*/)
 
 	// Release system
 	system->ReleaseInstance();
-
+	
+	cout << endl << "Recording ended" << endl << endl;
 	cout << endl << "Done! Press Enter to exit..." << endl << endl;
 
 	// Print application build information
