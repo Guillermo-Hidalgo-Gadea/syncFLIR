@@ -42,7 +42,7 @@ using namespace std;
 // CONFIG FILES FOR RECORDING
 const string triggerCam = "20323052"; // serial number of primary camera
 const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/FPS)
-const double FPS = 200.0; // exposure time in frames per second
+const double FPS = 75.0; // exposure time in frames per second
 double compression = 1.0; // TODO: compression
 
 // Files are saved to working directory, place the exe file in the right folder
@@ -329,29 +329,31 @@ int ConfigureExposure(INodeMap& nodeMap)
 
 	try
 	{
-		// Turn off automatic exposure mode
+		//Exposure Auto to Off 
 		CEnumerationPtr ptrExposureAuto = nodeMap.GetNode("ExposureAuto");
 		if (!IsAvailable(ptrExposureAuto) || !IsWritable(ptrExposureAuto))
 		{
 			cout << "Unable to disable automatic exposure (node retrieval). Aborting..." << endl << endl;
-			return -1;
+			return -1; 
 		}
-
+		
 		CEnumEntryPtr ptrExposureAutoOff = ptrExposureAuto->GetEntryByName("Off");
 		if (!IsAvailable(ptrExposureAutoOff) || !IsReadable(ptrExposureAutoOff))
 		{
 			cout << "Unable to disable automatic exposure (enum entry retrieval). Aborting..." << endl << endl;
 			return -1;
 		}
+		
 		ptrExposureAuto->SetIntValue(ptrExposureAutoOff->GetValue());
-
+		cout << "Automatic exposure disabled..." << endl;
+		
 		// Set exposure time manually; exposure time recorded in microseconds
 		CFloatPtr ptrExposureTime = nodeMap.GetNode("ExposureTime");
 		if (!IsAvailable(ptrExposureTime) || !IsWritable(ptrExposureTime))
 		{
 			cout << "Unable to set exposure time. Aborting..." << endl << endl;
 			return -1;
-		}
+		} 
 
 		// Ensure desired exposure time does not exceed the maximum
 		const double exposureTimeMax = ptrExposureTime->GetMax();
@@ -363,41 +365,61 @@ int ConfigureExposure(INodeMap& nodeMap)
 		}
 		ptrExposureTime->SetValue(exposureTimeToSet);
 		cout << std::fixed << "Exposure time set to " << exposureTimeToSet << " microseconds" << endl;
-
-		//checking the frame rate
+		
+		// checking the frame rate
 		cout << endl << "*** CONFIGURING FRAMERATE ***" << endl << endl;
-		CFloatPtr ptrAcquisitionFrameRate = nodeMap.GetNode("AcquisitionFrameRate");
-		if (!IsAvailable(ptrAcquisitionFrameRate) || !IsReadable(ptrAcquisitionFrameRate))
+		
+		//Enable Aquisition Frame Rate Control Enabled
+		CBooleanPtr ptrAcquisitionFrameRateControlEnabled = nodeMap.GetNode("AcquisitionFrameRateEnabled");
+		if (!IsAvailable(ptrAcquisitionFrameRateControlEnabled) || !IsWritable(ptrAcquisitionFrameRateControlEnabled))
 		{
-			cout << "Unable to get node AcquisitionFrameRate. Aborting..." << endl << endl;
+			cout << "Unable to set AcquisitionFrameRateControlEnabled (enum retrieval). Aborting..." << endl << endl;
 			return -1;
 		}
-		ptrAcquisitionFrameRate->SetValue(ptrAcquisitionFrameRate->GetMax());
-		double testAcqFrameRate = ptrAcquisitionFrameRate->GetValue();
-		cout << "Acquisition Frame Rate is  : " << testAcqFrameRate << endl;
-		cout << "Maximum Acquisition Frame Rate is  : " << ptrAcquisitionFrameRate->GetMax() << endl;
-
-		//checking the resulting FrameRate on the system after setting th exposure time:
-		CFloatPtr ptrResultingAcquisitionFrameRate = nodeMap.GetNode("AcquisitionResultingFrameRate");
-		if (!IsAvailable(ptrResultingAcquisitionFrameRate) || !IsReadable(ptrResultingAcquisitionFrameRate))
+		ptrAcquisitionFrameRateControlEnabled->SetValue(true);
+		cout << "Acquisition Frame Rate Enabled set to " << ptrAcquisitionFrameRateControlEnabled->GetValue() << endl;
+		
+		// Set Frame Rate Auto to Off 
+		CEnumerationPtr ptrFrameRateAuto = nodeMap.GetNode("AcquisitionFrameRateAuto");
+		if (!IsAvailable(ptrFrameRateAuto) || !IsWritable(ptrFrameRateAuto))
 		{
-			cout << "Unable to get node ResultingAcquisitionFrameRate. Aborting..." << endl << endl;
+			cout << "Unable to set FrameRateAuto  (enum retrieval). Aborting..." << endl << endl;
 			return -1;
 		}
-		double testResultingAcqFrameRate = ptrResultingAcquisitionFrameRate->GetValue();
+		
+		// Retrieve entry node from enumeration node
+		CEnumEntryPtr ptrFrameRateAutoOff = ptrFrameRateAuto->GetEntryByName("Off");
+		if (!IsAvailable(ptrFrameRateAutoOff) || !IsReadable(ptrFrameRateAutoOff))
+		{
+			cout << "Unable to set Frame Rate to Off (entry retrieval). Aborting..." << endl << endl;
+			return -1;
+		}
+		
+		// Retrieve integer value from entry node
+		int64_t framerateAutoOff = ptrFrameRateAutoOff->GetValue();
+		
+		// Set integer value from entry node as new value of enumeration node
+		ptrFrameRateAuto->SetIntValue(framerateAutoOff);
+		cout << "Frame Rate Auto set to Off..." << endl;
+		
+		// set the desired Frame Rate 
+		CFloatPtr ptrAcquisitionFrameRate =nodeMap.GetNode("AcquisitionFrameRate");
+		if (!IsAvailable(ptrAcquisitionFrameRate) || !IsWritable(ptrAcquisitionFrameRate))
+		{
+			cout << "Unable to set Acquisition Frame Rate   (enum retrieval). Aborting..." << endl << endl;
+			return -1;
+		}
+		cout << "Maximum Frame Rate is: " << ptrAcquisitionFrameRate->GetMax() << endl;
+		cout << "Minimum Frame Rate is: " << ptrAcquisitionFrameRate->GetMin() << endl;
 		double FPSToSet = FPS;
 		//if FPS > resulting then set FPS to max available
-		if (FPSToSet > testResultingAcqFrameRate)
+		if (FPSToSet > ptrAcquisitionFrameRate->GetMax())
 		{
-			FPSToSet = testResultingAcqFrameRate;
+			FPSToSet = ptrAcquisitionFrameRate->GetMax();
 			cout << "Chosen FPS to high, setting to max" << endl;
 		}
-		// set chosen FPS
-		//ptrResultingAcquisitionFrameRate->SetValue(FPSToSet);
 		ptrAcquisitionFrameRate->SetValue(FPSToSet);
-		
-		double NewFrameRate = ptrAcquisitionFrameRate->GetValue();
-		cout << "New acquisition Frame Rate is  : " << NewFrameRate << endl;
+		cout << "Acquisition Frame rate set to:  " << ptrAcquisitionFrameRate->GetValue() << endl;
 		
 	}
 	catch (Spinnaker::Exception& e)
