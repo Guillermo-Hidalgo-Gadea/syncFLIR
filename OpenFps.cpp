@@ -43,6 +43,7 @@ using namespace std;
 const string triggerCam = "20323052"; // serial number of primary camera
 const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/FPS)
 const double FPS = 200.0; // exposure time in frames per second
+//color or mono TODO
 double compression = 1.0; // TODO: compression
 
 // Files are saved to working directory, place the exe file in the right folder
@@ -665,12 +666,59 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 			cout << "wait abandoned" << endl;
 		}
 	}
+	// Stop acquisition
+	
+	// Disable all trigger modes
+	CEnumerationPtr ptrTriggerMode = nodeMap.GetNode("TriggerMode");
+	if (!IsAvailable(ptrTriggerMode) || !IsReadable(ptrTriggerMode))
+	{
+		cout << "Unable to disable trigger mode (node retrieval). Aborting..." << endl;
+		return -1;
+	}
+
+	CEnumEntryPtr ptrTriggerModeOff = ptrTriggerMode->GetEntryByName("Off");
+	if (!IsAvailable(ptrTriggerModeOff) || !IsReadable(ptrTriggerModeOff))
+	{
+		cout << "Unable to disable trigger mode (enum entry retrieval). Aborting..." << endl;
+		return -1;
+	}
+	ptrTriggerMode->SetIntValue(ptrTriggerModeOff->GetValue());
+	cout << "Recording stopped for "<< "Camera [" << serialNumber << "]" << endl;
+	
+	// Catch the remaining images in buffer
+	try
+	{
+		for (unsigned int imagesInBuffer = 0; imagesInBuffer < numBuffers; imagesInBuffer++)
+		{
+			// Get images from imagesInBuffer
+			ImagePtr pResultImage = pCam->GetNextImage();
+			imageData = static_cast<char*>(pResultImage->GetData());
+			
+			// Do the writing to assigned cameraFile
+			cameraFiles[cameraCnt].write(imageData, pResultImage->GetImageSize());
+			csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << endl;
+
+			// Check if the writing is successful
+			if (!cameraFiles[cameraCnt].good())
+			{
+				cout << "Error writing to file for camera " << cameraCnt << " !" << endl;
+				return -1;
+			}
+			
+			// Release image
+			pResultImage->Release();
+		}
+	}
+	catch (Spinnaker::Exception& e)
+	{
+		cout << "Error: " << e.what() << endl;
+		return 1;
+	}
+	
 	// End acquisition
 	pCam->EndAcquisition();
 	cameraFiles[cameraCnt].close();
 	csvFile.close();
-
-	// TODO: How to get last frames for secondary camera due to time lag
 
 	// Deinitialize camera
 	pCam->DeInit();
