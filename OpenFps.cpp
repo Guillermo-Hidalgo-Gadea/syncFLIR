@@ -43,7 +43,7 @@ using namespace std;
 const string triggerCam = "20323052"; // serial number of primary camera
 const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/FPS)
 const double FPS = 200.0; // exposure time in frames per second
-//color or mono TODO
+// TODO save only Mono image data?
 double compression = 1.0; // TODO: compression
 
 // Files are saved to working directory, place the exe file in the right folder
@@ -970,7 +970,8 @@ int main(int /*argc*/, char** /*argv*/)
 
 	// Release system
 	system->ReleaseInstance();
-
+	
+	cout << endl << "Recording ended" << endl << endl;
 	cout << endl << "Done! Press Enter to exit..." << endl << endl;
 
 	// Print application build information
