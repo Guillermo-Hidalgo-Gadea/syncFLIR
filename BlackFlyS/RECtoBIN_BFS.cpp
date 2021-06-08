@@ -25,9 +25,14 @@ Sourcecode: https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR
 #include <assert.h>
 #include <time.h>
 #include <cmath>
+#include <chrono>
 #ifndef _WIN32
 #include <pthread.h>
 #endif
+
+
+
+using namespace std::chrono;
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -39,7 +44,7 @@ using namespace std;
 // CONFIG FILES FOR RECORDING
 const string triggerCam = "20323052"; // serial number of primary camera
 const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/FPS)
-const double FPS = 170.0; // exposure time in frames per second
+const double FPS = 100.0; // exposure time in frames per second
 // TODO save only Mono image data?
 double compression = 1.0; // TODO: compression
 
@@ -169,7 +174,7 @@ int CreateFiles(string serialNumber, int cameraCnt)
 
 		// Create temporary files
 		csvFile.open(csvFilename);
-		csvFile << "FrameID" << "," << "Timestamp" << "," << "SerialNumber" << "," << "FileNumber" << endl;
+		csvFile << "FrameID" << "," << "Timestamp" << "," << "SerialNumber" << "," << "FileNumber" << "," << "WriteTime(ms)"<< endl;
 	}
 	return result;
 }
@@ -628,7 +633,6 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 					cout << "Camera [" << serialNumber << "] " << "Started recording with ID [" << cameraCnt << " ]..." << endl;
 					//TODO: save system time to csv
 				}
-
 				firstFrame = 0;
 
 
@@ -656,7 +660,11 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 
 				// Do the writing to assigned cameraFile
 				cameraFiles[cameraCnt].write(imageData, pResultImage->GetImageSize());
-				csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << endl; //TODO add system time
+				SYSTEMTIME now;
+				csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << "," << GetTickCount() << endl; //TODO add system time
+				
+
+				
 
 				// Check if the writing is successful
 				if (!cameraFiles[cameraCnt].good())
@@ -674,7 +682,7 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 				cout << "Error: " << e.what() << endl;
 				return -1;
 			}
-			
+
 
 			// normal break
 			ReleaseMutex(ghMutex);
@@ -870,6 +878,7 @@ int main(int /*argc*/, char** /*argv*/)
 	cout << "*************************************************************" << endl;
 
 	int result = 0;
+
 
 	// Test permission to write to directory specified on top
 	stringstream testfilestream;
