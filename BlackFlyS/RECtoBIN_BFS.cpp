@@ -2,16 +2,13 @@
 ====================================================================================================
 This script was developed with close assistance by the FLIR Systems Support Team, and is adapted
 from examples in FLIR Systems/Spinnaker/src. Copyright from FLIR Integrated Imaging Solutions, Inc. applies.
-
 This program initializes and configures FLIR cameras in a hardware trigger setup in wich the primary camera
 triggers all other secondary cameras. Image acquisition runs in parallel threads, locked during grabbing
 and writing, and saves data to binary files to save time in the between frames intervals.
-
 The .tmp output file has to be converted to AVI with a different code TMPtoAVI.
 Note that exposureTime and triggerCam serial number are hardcoded and need to be adapted before compiling
 the executable file. The binary files get very large, make sure to run the executable from the directory
 in which the recordings should be saved. Install Spinnaker SDK before using this script.
-
 MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com
 Sourcecode: https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR
 ====================================================================================================
@@ -42,7 +39,7 @@ using namespace std;
 // CONFIG FILES FOR RECORDING
 const string triggerCam = "20323052"; // serial number of primary camera
 const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/FPS)
-const double FPS = 200.0; // exposure time in frames per second
+const double FPS = 170.0; // exposure time in frames per second
 // TODO save only Mono image data?
 double compression = 1.0; // TODO: compression
 
@@ -396,10 +393,10 @@ int ConfigureExposure(INodeMap& nodeMap)
 		// set chosen FPS
 		//ptrResultingAcquisitionFrameRate->SetValue(FPSToSet);
 		ptrAcquisitionFrameRate->SetValue(FPSToSet);
-		
+
 		double NewFrameRate = ptrAcquisitionFrameRate->GetValue();
 		cout << "New acquisition Frame Rate is  : " << NewFrameRate << endl;
-		
+
 	}
 	catch (Spinnaker::Exception& e)
 	{
@@ -592,6 +589,7 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 	char* imageData;
 	string deviceUser_ID;
 	int firstFrame = 1;
+	int stopwait = 0;
 
 	// Retrieve and save images in while loop until manual ESC press
 	while (GetAsyncKeyState(VK_ESCAPE) == 0)
@@ -628,19 +626,37 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 				if (firstFrame == 1)
 				{
 					cout << "Camera [" << serialNumber << "] " << "Started recording with ID [" << cameraCnt << " ]..." << endl;
+					//TODO: save system time to csv
 				}
 
 				firstFrame = 0;
 
+
+				if (stopwait == 1)
+				{
+					break;
+				}
+
 				// Retrieve next image and ensure image completion
-				pResultImage = pCam->GetNextImage(); // waiting time for NextImage indefinite
+				try
+				{
+					pResultImage = pCam->GetNextImage(1000); // waiting time for NextImage indefinite
+				}
+				catch (Spinnaker::Exception& e)
+				{
+					cout << "Error: " << e.what() << endl;
+					stopwait == 1;
+					cout << "stopwait activated" << endl;
+					//return -1;
+
+				}
 
 				// Acquire the image buffer to write to a file
 				imageData = static_cast<char*>(pResultImage->GetData());
 
 				// Do the writing to assigned cameraFile
 				cameraFiles[cameraCnt].write(imageData, pResultImage->GetImageSize());
-				csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << endl;
+				csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << endl; //TODO add system time
 
 				// Check if the writing is successful
 				if (!cameraFiles[cameraCnt].good())
@@ -658,6 +674,9 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 				cout << "Error: " << e.what() << endl;
 				return -1;
 			}
+			
+
+			// normal break
 			ReleaseMutex(ghMutex);
 			break;
 
@@ -667,8 +686,7 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 		}
 	}
 	// TODO: primary and secondary cameras have a lag. Missing frames at the end or the beginning of the recording?
-	// TODO: use stopped-trigger event to break loop in secondary machines
-	
+
 	// End acquisition
 	pCam->EndAcquisition();
 	cameraFiles[cameraCnt].close();
@@ -692,13 +710,13 @@ int InitializeMultipleCameras(CameraList camList, CameraPtr* pCamList, unsigned 
 	try
 	{
 		// What is this part doing?
-		imageHeight.resize(camListSize); // TODO: compression here?
+		imageHeight.resize(camListSize);
 		imageWidth.resize(camListSize);
 
 		for (unsigned int i = 0; i < camListSize; i++)
 		{
 			// Select camera in loop
-			pCamList[i] = camList.GetByIndex(i);
+			pCamList[i] = camList.GetByIndex(i); // TODO: try to get order USB Interface/primary vs secondary // get serial
 			pCamList[i]->Init();
 
 			INodeMap& nodeMap = pCamList[i]->GetNodeMap();
@@ -924,7 +942,7 @@ int main(int /*argc*/, char** /*argv*/)
 
 	// Release system
 	system->ReleaseInstance();
-	
+
 	cout << endl << "Recording ended" << endl << endl;
 	cout << endl << "Done! Press Enter to exit..." << endl << endl;
 
