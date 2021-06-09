@@ -137,6 +137,14 @@ string getCurrentDateTime()
 	return test;
 }
 
+string getTimeStamp()
+{
+	std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
+	auto duration = now.time_since_epoch();
+	auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
+	return nanoseconds.count();
+}
+
 /*
 =================
 The function CreateFiles works within a for loop and creates .tmp binary files for each camera, as well as a single csv logging sheet csvFile. The files are saved in *directory* as initialised above.
@@ -661,7 +669,7 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 				// Do the writing to assigned cameraFile
 				cameraFiles[cameraCnt].write(imageData, pResultImage->GetImageSize());
 				SYSTEMTIME now;
-				csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << "," << GetTickCount() << endl; //TODO add system time
+				csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << "," << getTimeStamp() << GetTickCount() << endl; //TODO add system time
 				
 
 				
