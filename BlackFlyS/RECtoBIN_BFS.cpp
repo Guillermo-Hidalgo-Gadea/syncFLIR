@@ -137,12 +137,20 @@ string getCurrentDateTime()
 	return test;
 }
 
-string getTimeStamp()
+auto getTimeStamp()
 {
 	std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
 	auto duration = now.time_since_epoch();
+
+	typedef std::chrono::duration<int, std::ratio_multiply<std::chrono::hours::period, std::ratio<8>>::type> Days; 
+
+	Days days = std::chrono::duration_cast<Days>(duration);
+	duration -= days;
+
 	auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
-	return nanoseconds.count();
+
+	auto timestamp  = nanoseconds.count();
+	return timestamp;
 }
 
 /*
@@ -182,7 +190,7 @@ int CreateFiles(string serialNumber, int cameraCnt)
 
 		// Create temporary files
 		csvFile.open(csvFilename);
-		csvFile << "FrameID" << "," << "Timestamp" << "," << "SerialNumber" << "," << "FileNumber" << "," << "WriteTime(ms)"<< endl;
+		csvFile << "FrameID" << "," << "Timestamp" << "," << "SerialNumber" << "," << "FileNumber" << "," << "SystemTimeInNanoseconds" << endl;
 	}
 	return result;
 }
@@ -668,11 +676,15 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 
 				// Do the writing to assigned cameraFile
 				cameraFiles[cameraCnt].write(imageData, pResultImage->GetImageSize());
-				SYSTEMTIME now;
-				csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << "," << getTimeStamp() << GetTickCount() << endl; //TODO add system time
-				
 
-				
+				csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt  << endl;
+
+				//TODO add system time to see if frame id 0 (secondary cams) corresponds to frame id 0 (primary cam)
+				//CAUTION: slows down recording loop...
+				//csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << "," << getTimeStamp() << endl; 
+
+
+
 
 				// Check if the writing is successful
 				if (!cameraFiles[cameraCnt].good())
