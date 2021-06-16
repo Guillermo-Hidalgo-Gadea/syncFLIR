@@ -30,7 +30,6 @@ Sourcecode: https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR
 #include <pthread.h>
 #endif
 
-
 using namespace std::chrono;
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -41,7 +40,6 @@ using namespace std;
 const string triggerCam = "20323052"; // serial number of primary camera
 const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/ max FPS)
 const double FPS = 100.0; // frames per second in Hz
-// TODO: change pixel format between BayerRG8 and Mono8 (http://softwareservices.flir.com/BFS-U3-89S6/latest/Model/public/ImageFormatControl.html)
 const int color = 0; // 1=color, else Mono 
 const double compression = 1.0; // compression factor
 // TODO: use decimation or binning instead of size compression (http://softwareservices.flir.com/BFS-U3-89S6/latest/Model/public/ImageFormatControl.html)
