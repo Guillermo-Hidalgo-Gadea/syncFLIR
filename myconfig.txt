@@ -1,4 +1,0 @@
-# this is a config file
-gamma=2.8
-mode  =  1
-path = D:\Photoshop\Projects\Workspace\Images\
