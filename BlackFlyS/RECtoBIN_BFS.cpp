@@ -26,8 +26,11 @@ Sourcecode: https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR
 #include <time.h>
 #include <cmath>
 #include <chrono>
+#include <algorithm>
+#include <string>
 #ifndef _WIN32
 #include <pthread.h>
+
 #endif
 
 using namespace std::chrono;
@@ -36,14 +39,15 @@ using namespace Spinnaker::GenApi;
 using namespace Spinnaker::GenICam;
 using namespace std;
 
-// CONFIG PARAMETERS FOR RECORDING
-const string triggerCam = "20323052"; // serial number of primary camera
-const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/ max FPS)
-const double FPS = 100.0; // frames per second in Hz
-const int color = 0; // 1=color, else Mono 
-const double compression = 1.0; // compression factor
+// INITIALIZE CONFIG PARAMETERS FOR RECORDING >> exported to config file
+std::string path;
+std::string triggerCam = "20323052"; // serial number of primary camera
+double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/ max FPS)
+double FPS = 100.0; // frames per second in Hz
+int color = 0; // 1=color, else Mono 
+double compression = 1.0; // compression factor
 // TODO: use decimation or binning instead of size compression (http://softwareservices.flir.com/BFS-U3-89S6/latest/Model/public/ImageFormatControl.html)
-const int numBuffers = 200; // depending on RAM
+int numBuffers = 200; // depending on RAM
 
 // Image Height and width
 vector<size_t> imageHeight;
@@ -66,6 +70,57 @@ enum triggerType
 };
 
 triggerType chosenTrigger = SOFTWARE; // standard initialization
+
+
+/*
+================
+This function reads the config file to set camera parameters
+================
+*/
+int readconfig()
+{
+	int result = 0;
+
+	std::ifstream cFile("myConfig.txt");
+	if (cFile.is_open())
+	{
+		
+		std::string line;
+		while (getline(cFile, line))
+		{
+			line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
+			if (line[0] == '#' || line.empty()) continue;
+
+			auto delimiterPos = line.find("=");
+			auto name = line.substr(0, delimiterPos);
+			auto value = line.substr(delimiterPos + 1);
+
+			//Custom coding
+			if (name == "triggerCam") triggerCam = value;
+			else if (name == "FPS") FPS = std::stod(value);
+			else if (name == "color") color = std::stoi(value);
+			else if (name == "compression") compression = std::stod(value);
+			else if (name == "exposureTime") exposureTime = std::stod(value);
+			else if (name == "numBuffers") numBuffers = std::stod(value);
+			else if (name == "path") path = value;
+		}
+	}
+	else
+	{
+		std::cerr << "Couldn't open config file for reading.\n";
+	}
+
+	cout << "Parameter Settings from config file:";
+	cout << "\ntriggerCam=" << triggerCam;
+	std::cout << "\nFPS=" << FPS;
+	std::cout << "\ncolor=" << color;
+	std::cout << "\ncompression=" << compression;
+	std::cout << "\nexposureTime=" << exposureTime;
+	std::cout << "\nnumBuffers=" << numBuffers;
+	std::cout << "\nPath=" << path<< endl << endl;
+
+	return result, triggerCam, exposureTime, path, FPS, color, compression, numBuffers;
+}
 
 /*
 =================
@@ -156,7 +211,7 @@ int CreateFiles(string serialNumber, int cameraCnt)
 	stringstream sstream_csvFile;
 	string tmpFilename;
 	string csvFilename;
-	const string csDestinationDirectory = "";
+	const string csDestinationDirectory = path;
 
 	sstream_tmpFilename << csDestinationDirectory << getCurrentDateTime() + "_" + serialNumber << "_file" << cameraCnt << ".tmp";
 	sstream_tmpFilename >> tmpFilename;
@@ -231,7 +286,7 @@ int ImageSettings(INodeMap& nodeMap)
 		CEnumerationPtr ptrPixelFormat = nodeMap.GetNode("PixelFormat");
 		if (IsAvailable(ptrPixelFormat) && IsWritable(ptrPixelFormat))
 		{
-			if (color == 1) 
+			if (color == 1)
 			{
 				// Retrieve the desired entry node from the enumeration node
 				CEnumEntryPtr ptrPixelFormatBayerRG8 = ptrPixelFormat->GetEntryByName("BayerRG8");
@@ -946,6 +1001,9 @@ int main(int /*argc*/, char** /*argv*/)
 
 	fclose(tempFile);
 	remove(testfile);
+
+	// Read config file and set parameters
+	readconfig();
 
 	// Retrieve singleton reference to system object
 	SystemPtr system = System::GetInstance();
