@@ -31,7 +31,8 @@ using namespace Spinnaker::Video;
 using namespace std;
 
 
-// PARAMETERS FROM RECORDING SETTINGS  
+// PARAMETERS FROM RECORDING SETTINGS
+// TODO: parameters as text input instead of hardcoded before compilation...
 float frameRateToSet = 194; 
 int imageHeight = 1080; 
 int imageWidth = 1440;
