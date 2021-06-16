@@ -31,12 +31,13 @@ using namespace Spinnaker::Video;
 using namespace std;
 
 
-// FRAMERATE 
-float frameRateToSet = 194; // TODO: hardcoded, check if real fps
-
-// Image size
-int imageHeight = 1080; // TODO: HARDCODED FROM PREVIOUS RECORDING 
+// PARAMETERS FROM RECORDING SETTINGS  
+float frameRateToSet = 194; 
+int imageHeight = 1080; 
 int imageWidth = 1440;
+int color = 1; // 1= color, else = mono
+// TODO: change color format
+// TODO: compression videoType?
 
 // select the type of video compression
 enum videoType
