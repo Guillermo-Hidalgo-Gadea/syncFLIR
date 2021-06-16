@@ -46,6 +46,8 @@ const string triggerCam = "20323052"; // serial number of primary camera
 const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/ max FPS)
 const double FPS = 100.0; // frames per second in Hz
 // TODO: change pixel format between BayerRG8 and Mono8 (http://softwareservices.flir.com/BFS-U3-89S6/latest/Model/public/ImageFormatControl.html)
+const string format = "Mono8" 
+// const string format = "BayerRG8"
 const double compression = 1.0; // compression factor
 // TODO: use decimation or binning instead of size compression (http://softwareservices.flir.com/BFS-U3-89S6/latest/Model/public/ImageFormatControl.html)
 const int numBuffers = 200; // depending on RAM
@@ -226,6 +228,32 @@ int ImageSettings(INodeMap& nodeMap)
 		else
 		{
 			cout << "Height not available..." << endl << endl;
+		}
+		
+		
+		// Set Pixel Format
+		
+		// Retrieve the enumeration node from the nodemap
+		CEnumerationPtr ptrPixelFormat = nodeMap.GetNode("PixelFormat");
+		if (IsAvailable(ptrPixelFormat) && IsWritable(ptrPixelFormat))
+		{
+			// Retrieve the desired entry node from the enumeration node
+			CEnumEntryPtr ptrPixelFormat = ptrPixelFormat->GetEntryByName(format);
+			if (IsAvailable(ptrPixelFormat) && IsReadable(ptrPixelFormat)){
+				// Retrieve the integer value from the entry node
+				int64_t pixelFormat = ptrPixelFormat->GetValue();
+				// Set integer as new value for enumeration node
+				ptrPixelFormat->SetIntValue(pixelFormat);
+				cout << "Pixel format set to " << ptrPixelFormat->GetCurrentEntry()->GetSymbolic() << "..." << endl;
+			}
+			else
+			{
+				cout << "Pixel format "<< format <<" not available..." << endl;
+			}
+		}
+		else
+		{
+			cout << "Pixel format not available..." << endl;
 		}
 	}
 	catch (Spinnaker::Exception& e)
