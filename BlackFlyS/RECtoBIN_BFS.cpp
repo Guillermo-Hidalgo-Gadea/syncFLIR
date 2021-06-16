@@ -31,23 +31,18 @@ Sourcecode: https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR
 #endif
 
 
-
 using namespace std::chrono;
-
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
 using namespace Spinnaker::GenICam;
 using namespace std;
-//using std::cout;
-//using Spinnaker::Exception;
 
 // CONFIG PARAMETERS FOR RECORDING
 const string triggerCam = "20323052"; // serial number of primary camera
 const double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/ max FPS)
 const double FPS = 100.0; // frames per second in Hz
 // TODO: change pixel format between BayerRG8 and Mono8 (http://softwareservices.flir.com/BFS-U3-89S6/latest/Model/public/ImageFormatControl.html)
-const string format = "Mono8" 
-// const string format = "BayerRG8"
+const int color = 0; // 1=color, else Mono 
 const double compression = 1.0; // compression factor
 // TODO: use decimation or binning instead of size compression (http://softwareservices.flir.com/BFS-U3-89S6/latest/Model/public/ImageFormatControl.html)
 const int numBuffers = 200; // depending on RAM
@@ -138,14 +133,14 @@ auto getTimeStamp()
 	std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
 	auto duration = now.time_since_epoch();
 
-	typedef std::chrono::duration<int, std::ratio_multiply<std::chrono::hours::period, std::ratio<8>>::type> Days; 
+	typedef std::chrono::duration<int, std::ratio_multiply<std::chrono::hours::period, std::ratio<8>>::type> Days;
 
 	Days days = std::chrono::duration_cast<Days>(duration);
 	duration -= days;
 
 	auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
 
-	auto timestamp  = nanoseconds.count();
+	auto timestamp = nanoseconds.count();
 	return timestamp;
 }
 
@@ -163,6 +158,7 @@ int CreateFiles(string serialNumber, int cameraCnt)
 	stringstream sstream_csvFile;
 	string tmpFilename;
 	string csvFilename;
+	const string csDestinationDirectory = "";
 
 	sstream_tmpFilename << csDestinationDirectory << getCurrentDateTime() + "_" + serialNumber << "_file" << cameraCnt << ".tmp";
 	sstream_tmpFilename >> tmpFilename;
@@ -173,7 +169,7 @@ int CreateFiles(string serialNumber, int cameraCnt)
 	ofstream filename;
 	cameraFiles.push_back(std::move(filename));
 	cameraFiles[cameraCnt].open(tmpFilename.c_str(), ios_base::out | ios_base::binary);
-	
+
 	// Create .csv logfile only once for all cameras during first loop
 	if (cameraCnt == 0)
 	{
@@ -229,26 +225,45 @@ int ImageSettings(INodeMap& nodeMap)
 		{
 			cout << "Height not available..." << endl << endl;
 		}
-		
-		
+
+
 		// Set Pixel Format
-		
+
 		// Retrieve the enumeration node from the nodemap
 		CEnumerationPtr ptrPixelFormat = nodeMap.GetNode("PixelFormat");
 		if (IsAvailable(ptrPixelFormat) && IsWritable(ptrPixelFormat))
 		{
-			// Retrieve the desired entry node from the enumeration node
-			CEnumEntryPtr ptrPixelFormat = ptrPixelFormat->GetEntryByName(format);
-			if (IsAvailable(ptrPixelFormat) && IsReadable(ptrPixelFormat)){
-				// Retrieve the integer value from the entry node
-				int64_t pixelFormat = ptrPixelFormat->GetValue();
-				// Set integer as new value for enumeration node
-				ptrPixelFormat->SetIntValue(pixelFormat);
-				cout << "Pixel format set to " << ptrPixelFormat->GetCurrentEntry()->GetSymbolic() << "..." << endl;
+			if (color == 1) 
+			{
+				// Retrieve the desired entry node from the enumeration node
+				CEnumEntryPtr ptrPixelFormatBayerRG8 = ptrPixelFormat->GetEntryByName("BayerRG8");
+				if (IsAvailable(ptrPixelFormatBayerRG8) && IsReadable(ptrPixelFormatBayerRG8))
+				{
+					// Set integer as new value for enumeration node
+					ptrPixelFormat->SetIntValue(ptrPixelFormatBayerRG8->GetValue());
+					cout << "Pixel format set to " << ptrPixelFormat->GetCurrentEntry()->GetSymbolic() << "..." << endl;
+
+				}
+				else
+				{
+					cout << "Pixel format BayerRG8 not available..." << endl;
+				}
 			}
 			else
 			{
-				cout << "Pixel format "<< format <<" not available..." << endl;
+				// Retrieve the desired entry node from the enumeration node
+				CEnumEntryPtr ptrPixelFormatMono8 = ptrPixelFormat->GetEntryByName("Mono8");
+				if (IsAvailable(ptrPixelFormatMono8) && IsReadable(ptrPixelFormatMono8))
+				{
+					// Set integer as new value for enumeration node
+					ptrPixelFormat->SetIntValue(ptrPixelFormatMono8->GetValue());
+
+					cout << "Pixel format set to " << ptrPixelFormat->GetCurrentEntry()->GetSymbolic() << "..." << endl;
+				}
+				else
+				{
+					cout << "Pixel format Mono8 not available..." << endl;
+				}
 			}
 		}
 		else
@@ -323,7 +338,7 @@ int ConfigureTrigger(INodeMap& nodeMap)
 			}
 			ptrTriggerSource->SetIntValue(ptrTriggerSourceSoftware->GetValue());
 			cout << "2. Trigger source set to software" << endl;
-			
+
 			// Trigger mode not yet activated, initialized with BeginAcquisition
 		}
 		else if (chosenTrigger == HARDWARE)
@@ -426,14 +441,14 @@ int ConfigureExposure(INodeMap& nodeMap)
 		}
 		double testResultingAcqFrameRate = ptrResultingAcquisitionFrameRate->GetValue();
 		double FPSToSet = FPS;
-		
+
 		// if FPS > resulting then set FPS to max available
 		if (FPSToSet > testResultingAcqFrameRate)
 		{
 			FPSToSet = testResultingAcqFrameRate;
 			cout << "Chosen FPS to high, setting to max" << endl;
 		}
-		
+
 		// set chosen FPS
 		ptrAcquisitionFrameRate->SetValue(FPSToSet);
 
@@ -644,8 +659,8 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 			INFINITE);  // no time-out interval
 		switch (dwWaitResult)
 		{
-		
-		// The thread got ownership of the mutex
+
+			// The thread got ownership of the mutex
 		case WAIT_OBJECT_0:
 
 			try
@@ -665,7 +680,7 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 					deviceUser_ID = ptrDeviceUserId->GetValue();
 					cameraCnt = atoi(deviceUser_ID.c_str());
 				}
-				
+
 				// anounce start recordnig only for firstFrame
 				if (firstFrame == 1)
 				{
@@ -697,7 +712,7 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 				// Do the writing to assigned cameraFile
 				cameraFiles[cameraCnt].write(imageData, pResultImage->GetImageSize());
 
-				csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt  << endl;
+				csvFile << pResultImage->GetFrameID() << "," << pResultImage->GetTimeStamp() << "," << serialNumber << "," << cameraCnt << endl;
 
 				//TODO add system time to see if frame id 0 (secondary cams) corresponds to frame id 0 (primary cam)
 				//CAUTION: slows down recording loop...
@@ -724,7 +739,7 @@ DWORD WINAPI AcquireImages(LPVOID lpParam)
 			ReleaseMutex(ghMutex);
 			break;
 
-		// The thread got ownership of an abandoned mutex
+			// The thread got ownership of an abandoned mutex
 		case WAIT_ABANDONED:
 			cout << "wait abandoned" << endl;
 		}
@@ -752,10 +767,6 @@ int InitializeMultipleCameras(CameraList camList, CameraPtr* pCamList, unsigned 
 
 	try
 	{
-		// TODO: What is this part doing?
-		imageHeight.resize(camListSize);
-		imageWidth.resize(camListSize);
-
 		for (unsigned int i = 0; i < camListSize; i++)
 		{
 			// Select camera in loop
@@ -777,7 +788,7 @@ int InitializeMultipleCameras(CameraList camList, CameraPtr* pCamList, unsigned 
 				cout << "Unable to get node ptrDeviceUserId. Aborting..." << endl << endl;
 				return -1;
 			}
-			
+
 			stringstream sstreamDeviceUserID;
 			sstreamDeviceUserID << i;
 			string DeviceUserID = sstreamDeviceUserID.str();
@@ -797,16 +808,16 @@ int InitializeMultipleCameras(CameraList camList, CameraPtr* pCamList, unsigned 
 				chosenTrigger = HARDWARE; // variable is changed globally
 				ConfigureTrigger(nodeMap); // secondary cameras are triggered by primary camera
 			}
-			
+
 			// Set Buffer
 			BufferHandlingSettings(pCamList[i]);
-			
+
 			// Set Strobe
 			ConfigureStrobe(pCamList[i], nodeMap);
-			
+
 			// Set Exposure and Framerate
 			ConfigureExposure(nodeMap);
-			
+
 			// Set Image Settings
 			ImageSettings(nodeMap);
 
