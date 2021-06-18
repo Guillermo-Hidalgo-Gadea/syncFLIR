@@ -1,7 +1,7 @@
 /*
 ====================================================================================================
 This script was developed with close assistance by the FLIR Systems Support Team, and is adapted
-from examples in FLIR Systems/Spinnaker/src. Copyright from FLIR Integrated Imaging Solutions, Inc. applies. 
+from examples in FLIR Systems/Spinnaker/src. Copyright from FLIR Integrated Imaging Solutions, Inc. applies.
 
 After recording hardware triggered, synchronized images to binary files in the previous script,
 this file converts the binary file back to a vector of images and creates a video file.
@@ -18,11 +18,13 @@ Sourcecode: https://github.com/Guillermo-Hidalgo-Gadea/syncFLIR
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <string>
 #include <vector>
 #include <ctime>
 #include <assert.h>
 #include <time.h>
 #include "SpinVideo.h"
+#include <algorithm>
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -32,27 +34,26 @@ using namespace std;
 
 
 // Initialize Config parameters will be updated by config file
-double frameRateToSet = 100; 
-int imageHeight = 1080; 
+double frameRateToSet = 100;
+int imageHeight = 1080;
 int imageWidth = 1440;
 int color = 1; // 1= color, else = mono
-enum videoType {UNCOMPRESSED, MJPG,H264};
-const videoType chosenVideoType = MJPG; // select the type of video compression
-string path;
+std::string chosenVideoType = "MJPG"; 
+std::string path;
 
 /*
 ================
 This function reads the config file to update camera parameters such as directory path, Framerate and image size from previous recording
 ================
 */
-int readconfig(string metadata)
+auto readconfig(string metadata)
 {
 	int result = 0;
 
 	std::ifstream cFile(metadata);
 	if (cFile.is_open())
 	{
-		
+
 		std::string line;
 		while (getline(cFile, line))
 		{
@@ -77,13 +78,12 @@ int readconfig(string metadata)
 		std::cerr << "Couldn't open config file for reading.\n";
 	}
 
-	cout << "Parameter Settings from metadata file:";
 	cout << "\nFramerate=" << frameRateToSet;
 	std::cout << "\nImageHeight=" << imageHeight;
 	std::cout << "\nImageWidth=" << imageWidth;
 	std::cout << "\nColorVideo=" << color;
 	std::cout << "\nchosenVideoType=" << chosenVideoType;
-	std::cout << "\nVideoPath=" << path<< endl << endl;
+	std::cout << "\nVideoPath=" << path << endl << endl;
 
 	return result, frameRateToSet, imageHeight, imageWidth, color, chosenVideoType, path;
 }
@@ -99,10 +99,10 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images, int part)
 {
 	int result = 0;
 
-	// Since this application saves images in the current folder
-	// we must ensure that we have permission to write to this folder.
-	// If we do not have permission, fail right away.
-	FILE* tempFile = fopen("test.txt", "w+");
+	// Test write permission
+	string testpath = path + "/test.txt";
+	const char* testfile = testpath.c_str() ;
+	FILE* tempFile = fopen(testfile, "w+");
 	if (tempFile == nullptr)
 	{
 		cout << "Failed to create file in current folder.  Please check permissions." << endl;
@@ -112,37 +112,27 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images, int part)
 	}
 
 	fclose(tempFile);
-	remove("test.txt");
+	remove(testfile);
 
 
 	cout << endl << "*** CONVERTING VIDEO ***" << endl << endl;
 	try
 	{
-		// FILENAME (TODO: append compression type 
-		string videoFilename = tempFilename.substr(0, tempFilename.length() - 4) + "_" + to_string(part);
+		// FILENAME 
+		string videoFilename = path + tempFilename.substr(3, tempFilename.length() - 7) + "_" + to_string(part);
 
-		cout << "Frame Rate set to " << frameRateToSet << "FPS" << endl;
+		cout << "Frame Rate set to " << frameRateToSet << " FPS" << endl;
 
 		// Start and open video file
 		SpinVideo video;
-
 
 		// Set maximum video file size to 2GB. A new video file is generated when limit is reached. Setting maximum file size to 0 indicates no limit.
 		const unsigned int k_videoFileSize = 0;
 
 		video.SetMaximumFileSize(k_videoFileSize);
 
-		// Setting chosenVideoType. Once the desired option object is configured, open the video file with the option in order to create the video file.
-
-		if (chosenVideoType == UNCOMPRESSED)
-		{
-			Video::AVIOption option;
-
-			option.frameRate = frameRateToSet;
-
-			video.Open(videoFilename.c_str(), option);
-		}
-		else if (chosenVideoType == MJPG)
+		// Setting chosenVideoType. Once the desired option object is configured, open the video file with the option in order to create the video file.	
+		if (chosenVideoType =="MJPG")
 		{
 			Video::MJPGOption option;
 
@@ -150,8 +140,9 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images, int part)
 			option.quality = 95;
 
 			video.Open(videoFilename.c_str(), option);
+			cout << "VideoType set to MJPG" << endl;
 		}
-		else if (chosenVideoType == H264)
+		else if (chosenVideoType == "H264")
 		{
 			Video::H264Option option;
 
@@ -161,6 +152,16 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images, int part)
 			option.width = static_cast<unsigned int>(images[0]->GetWidth());
 
 			video.Open(videoFilename.c_str(), option);
+			cout << "VideoType set to H264" << endl;
+		}
+		else // UNCOMPRESSED
+		{
+			Video::AVIOption option;
+
+			option.frameRate = frameRateToSet;
+
+			video.Open(videoFilename.c_str(), option);
+			cout << "VideoType set to UNCOMPRESSED" << endl;
 		}
 
 
@@ -175,7 +176,7 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images, int part)
 		// Close video file
 		video.Close();
 		cout << " done!" << endl;
-		cout << "Video " << videoFilename << ".avi saved!" << endl << endl;
+		cout << "Video " << videoFilename << ".avi saved!"  << endl;
 	}
 	catch (Spinnaker::Exception& e)
 	{
@@ -194,7 +195,7 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles)
 {
 	int result = 0;
 	int imageSize = imageHeight * imageWidth;
-	
+
 	try {
 		// Loop through the binary filenames and retrieve images of imageSize
 		for (int fileCnt = 0; fileCnt < numFiles; fileCnt++)
@@ -242,8 +243,8 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles)
 				char* imageBuffer = new char[imageSize];
 
 				rawFile.read(imageBuffer, imageSize);
-				
-				if(color == 1)
+
+				if (color == 1)
 				{
 					// Import binary image into BayerRG8 Image structure
 					ImagePtr pImage = Image::Create(imageWidth, imageHeight, 0, 0, PixelFormat_BayerRG8, imageBuffer);
@@ -259,8 +260,6 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles)
 					// Deep copy image into Mono8 image vector
 					images.push_back(pImage->Convert(PixelFormat_Mono8, HQ_LINEAR));
 				}
-
-				
 
 				// Delete the acquired buffer
 				delete[] imageBuffer;
@@ -307,12 +306,12 @@ int main(int /*argc*/, char** /*argv*/)
 	// Ask for metadata first to update config parameters
 	string metadata;
 	cout << endl << "Enter the METADATA file of the specific recording to convert: " << endl;
-	getline(cin, metadata); 
+	getline(cin, metadata);
 	cout << endl << "Setting parameters from " + metadata + " ... " << endl;
-	
+
 	// Set configuration parameters
 	readconfig(metadata);
-	
+
 	// Manual input of Binary filenames to be converted
 	vector<string> filenames = {};
 	string S, T;
@@ -339,11 +338,8 @@ int main(int /*argc*/, char** /*argv*/)
 	// Retrieve images from .tmp file
 	result = RetrieveImagesFromFiles(filenames, numFiles);
 
-	// Image vector saved to video within Retrieve Image loop
 
-	cout << "Conversion complete." << endl;
-
-	cout << endl << "Done! Press Enter to exit..." << endl;
+	cout << endl << "Conversion complete! Press Enter to exit..." << endl;
 
 	// Print application build information
 	cout << "*************************************************************" << endl;
