@@ -126,8 +126,8 @@ int SaveVectorToVideo(string tempFilename, vector<ImagePtr>& images, int part)
 		// Start and open video file
 		SpinVideo video;
 
-		// Set maximum video file size to 2GB. A new video file is generated when limit is reached. Setting maximum file size to 0 indicates no limit.
-		const unsigned int k_videoFileSize = 0;
+		// Set maximum video file size to 4GB. A new video file is generated when limit is reached. Setting maximum file size to 0 indicates no limit.
+		const unsigned int k_videoFileSize = 4096;
 
 		video.SetMaximumFileSize(k_videoFileSize);
 
