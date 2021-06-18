@@ -3,7 +3,6 @@
 # change the parameters below carefully before running RECtoBIN.exe
 triggerCam = 20323052
 FPS = 170.0
-color = 1
 compression = 1.0
 exposureTime = 5000.0
 numBuffers = 250
