@@ -39,12 +39,11 @@ using namespace Spinnaker::GenApi;
 using namespace Spinnaker::GenICam;
 using namespace std;
 
-// INITIALIZE CONFIG PARAMETERS FOR RECORDING >> exported to config file
+// Initialize Config parameters will be updated by config file
 std::string path;
 std::string triggerCam = "20323052"; // serial number of primary camera
 double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/ max FPS)
 double FPS = 100.0; // frames per second in Hz
-int color = 0; // 1=color, else Mono 
 double compression = 1.0; // compression factor
 // TODO: use decimation or binning instead of size compression (http://softwareservices.flir.com/BFS-U3-89S6/latest/Model/public/ImageFormatControl.html)
 int numBuffers = 200; // depending on RAM
@@ -74,7 +73,7 @@ triggerType chosenTrigger = SOFTWARE; // standard initialization
 
 /*
 ================
-This function reads the config file to set camera parameters
+This function reads the config file to update camera parameters such as working directory, serial of primary camera and Framerate
 ================
 */
 int readconfig()
@@ -98,7 +97,6 @@ int readconfig()
 			//Custom coding
 			if (name == "triggerCam") triggerCam = value;
 			else if (name == "FPS") FPS = std::stod(value);
-			else if (name == "color") color = std::stoi(value);
 			else if (name == "compression") compression = std::stod(value);
 			else if (name == "exposureTime") exposureTime = std::stod(value);
 			else if (name == "numBuffers") numBuffers = std::stod(value);
@@ -113,13 +111,12 @@ int readconfig()
 	cout << "Parameter Settings from config file:";
 	cout << "\ntriggerCam=" << triggerCam;
 	std::cout << "\nFPS=" << FPS;
-	std::cout << "\ncolor=" << color;
 	std::cout << "\ncompression=" << compression;
 	std::cout << "\nexposureTime=" << exposureTime;
 	std::cout << "\nnumBuffers=" << numBuffers;
 	std::cout << "\nPath=" << path<< endl << endl;
 
-	return result, triggerCam, exposureTime, path, FPS, color, compression, numBuffers;
+	return result, triggerCam, exposureTime, path, FPS, compression, numBuffers;
 }
 
 /*
@@ -249,6 +246,8 @@ int ImageSettings(INodeMap& nodeMap)
 
 	try
 	{
+		// TODO: update with decimation and or binning
+		
 		// Set image width
 		CIntegerPtr ptrWidth = nodeMap.GetNode("Width");
 		if (IsAvailable(ptrWidth) && IsWritable(ptrWidth))
@@ -279,50 +278,6 @@ int ImageSettings(INodeMap& nodeMap)
 			cout << "Height not available..." << endl << endl;
 		}
 
-
-		// Set Pixel Format
-
-		// Retrieve the enumeration node from the nodemap
-		CEnumerationPtr ptrPixelFormat = nodeMap.GetNode("PixelFormat");
-		if (IsAvailable(ptrPixelFormat) && IsWritable(ptrPixelFormat))
-		{
-			if (color == 1)
-			{
-				// Retrieve the desired entry node from the enumeration node
-				CEnumEntryPtr ptrPixelFormatBayerRG8 = ptrPixelFormat->GetEntryByName("BayerRG8");
-				if (IsAvailable(ptrPixelFormatBayerRG8) && IsReadable(ptrPixelFormatBayerRG8))
-				{
-					// Set integer as new value for enumeration node
-					ptrPixelFormat->SetIntValue(ptrPixelFormatBayerRG8->GetValue());
-					cout << "Pixel format set to " << ptrPixelFormat->GetCurrentEntry()->GetSymbolic() << "..." << endl;
-
-				}
-				else
-				{
-					cout << "Pixel format BayerRG8 not available..." << endl;
-				}
-			}
-			else
-			{
-				// Retrieve the desired entry node from the enumeration node
-				CEnumEntryPtr ptrPixelFormatMono8 = ptrPixelFormat->GetEntryByName("Mono8");
-				if (IsAvailable(ptrPixelFormatMono8) && IsReadable(ptrPixelFormatMono8))
-				{
-					// Set integer as new value for enumeration node
-					ptrPixelFormat->SetIntValue(ptrPixelFormatMono8->GetValue());
-
-					cout << "Pixel format set to " << ptrPixelFormat->GetCurrentEntry()->GetSymbolic() << "..." << endl;
-				}
-				else
-				{
-					cout << "Pixel format Mono8 not available..." << endl;
-				}
-			}
-		}
-		else
-		{
-			cout << "Pixel format not available..." << endl;
-		}
 	}
 	catch (Spinnaker::Exception& e)
 	{
@@ -1002,7 +957,7 @@ int main(int /*argc*/, char** /*argv*/)
 	fclose(tempFile);
 	remove(testfile);
 
-	// Read config file and set parameters
+	// Read config file and update parameters
 	readconfig();
 
 	// Retrieve singleton reference to system object
@@ -1049,6 +1004,11 @@ int main(int /*argc*/, char** /*argv*/)
 
 	// Run all cameras
 	result = RecordMultipleCameraThreads(camList);
+	
+	// Save metadata with recording settings
+	// TODO: create file
+	// write fps, hight, weight, color, chosenVideoType = MJPG
+
 
 	// Clear camera list before releasing system
 	camList.Clear();
