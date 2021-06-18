@@ -203,12 +203,25 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles)
 				char* imageBuffer = new char[imageSize];
 
 				rawFile.read(imageBuffer, imageSize);
+				
+				if(color == 1)
+				{
+					// Import binary image into BayerRG8 Image structure
+					ImagePtr pImage = Image::Create(imageWidth, imageHeight, 0, 0, PixelFormat_BayerRG8, imageBuffer);
 
-				// Import binary image into Image structure
-				ImagePtr pImage = Image::Create(imageWidth, imageHeight, 0, 0, PixelFormat_BayerRG8, imageBuffer);
+					// Deep copy image into BayerRG8 image vector
+					images.push_back(pImage->Convert(PixelFormat_BayerRG8, HQ_LINEAR));
+				}
+				else
+				{
+					// Import binary image into Mono8 Image structure
+					ImagePtr pImage = Image::Create(imageWidth, imageHeight, 0, 0, PixelFormat_Mono8, imageBuffer);
 
-				// Deep copy image into image vector
-				images.push_back(pImage->Convert(PixelFormat_BayerRG8, HQ_LINEAR));
+					// Deep copy image into Mono8 image vector
+					images.push_back(pImage->Convert(PixelFormat_Mono8, HQ_LINEAR));
+				}
+
+				
 
 				// Delete the acquired buffer
 				delete[] imageBuffer;
@@ -252,9 +265,9 @@ int main(int /*argc*/, char** /*argv*/)
 	cout << "MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com" << endl;
 	cout << "*************************************************************" << endl;
 
-
-	// TODO: Ask for files with Dialog
-	// Manual input of filenames to be converted
+	// TODO: ask for metadata first to update config parameters
+	
+	// Manual input of Binary filenames to be converted
 	vector<string> filenames = {};
 	string S, T;
 	cout << endl << "Enter the binary files to convert separated by a + sign: " << endl;
