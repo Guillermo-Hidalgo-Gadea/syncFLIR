@@ -48,13 +48,8 @@ double compression = 1.0; // compression factor
 // TODO: use decimation or binning instead of size compression (http://softwareservices.flir.com/BFS-U3-89S6/latest/Model/public/ImageFormatControl.html)
 int numBuffers = 200; // depending on RAM
 
-// Image Height and width
-vector<size_t> imageHeight;
-vector<size_t> imageWidth;
-
 // placeholder for names of file and camera IDs
 vector<ofstream> cameraFiles;
-ofstream csvFile;
 int cameraCnt;
 string serialNumber;
 
@@ -206,23 +201,28 @@ int CreateFiles(string serialNumber, int cameraCnt)
 
 	stringstream sstream_tmpFilename;
 	stringstream sstream_csvFile;
+	stringstream sstream_metadataFile;
 	string tmpFilename;
 	string csvFilename;
+	string metadataFilename;
+	ofstream filename; // TODO: still needed?
+	ofstream csvFile;
+	ofstream metadataFile;
 	const string csDestinationDirectory = path;
-
+	
+	// Create temporary file from serialnum assigned to cameraCnt
 	sstream_tmpFilename << csDestinationDirectory << getCurrentDateTime() + "_" + serialNumber << "_file" << cameraCnt << ".tmp";
 	sstream_tmpFilename >> tmpFilename;
 
 	cout << "File " << tmpFilename << " initialized" << endl;
-
-	// Create temporary file from serialnum assigned to cameraCnt
-	ofstream filename;
-	cameraFiles.push_back(std::move(filename));
+	
+	cameraFiles.push_back(std::move(filename)); // TODO: still needed?
 	cameraFiles[cameraCnt].open(tmpFilename.c_str(), ios_base::out | ios_base::binary);
 
-	// Create .csv logfile only once for all cameras during first loop
+	// Create .csv logfile and .txt metadata only once for all cameras during first loop
 	if (cameraCnt == 0)
 	{
+		// create csv logfile with headers
 		sstream_csvFile << csDestinationDirectory << getCurrentDateTime() << ".csv";
 		sstream_csvFile >> csvFilename;
 
@@ -230,6 +230,11 @@ int CreateFiles(string serialNumber, int cameraCnt)
 
 		csvFile.open(csvFilename);
 		csvFile << "FrameID" << "," << "Timestamp" << "," << "SerialNumber" << "," << "FileNumber" << "," << "SystemTimeInNanoseconds" << endl;
+		
+		// create txt metadata
+		sstream_metadataFile << csDestinationDirectory << getCurrentDateTime() << ".txt";
+		sstream_metadataFile >> metadataFilename;
+		
 	}
 	return result;
 }
@@ -252,9 +257,10 @@ int ImageSettings(INodeMap& nodeMap)
 		CIntegerPtr ptrWidth = nodeMap.GetNode("Width");
 		if (IsAvailable(ptrWidth) && IsWritable(ptrWidth))
 		{
-			int widthToSet = ptrWidth->GetMax();
-			widthToSet = widthToSet / compression;
+			int width = ptrWidth->GetMax();
+			widthToSet = width / compression;
 			ptrWidth->SetValue(widthToSet);
+			
 
 			cout << "Width set to " << ptrWidth->GetValue() << "..." << endl;
 		}
@@ -267,8 +273,8 @@ int ImageSettings(INodeMap& nodeMap)
 		CIntegerPtr ptrHeight = nodeMap.GetNode("Height");
 		if (IsAvailable(ptrHeight) && IsWritable(ptrHeight))
 		{
-			int heightToSet = ptrHeight->GetMax();
-			heightToSet = heightToSet / compression;
+			int height = ptrHeight->GetMax();
+			heightToSet = height / compression;
 			ptrHeight->SetValue(heightToSet);
 
 			cout << "Height set to " << ptrHeight->GetValue() << "..." << endl << endl;
@@ -285,7 +291,7 @@ int ImageSettings(INodeMap& nodeMap)
 		result = -1;
 	}
 
-	return result;
+	return result, widthToSet, heightToSet;
 }
 
 
@@ -469,7 +475,7 @@ int ConfigureExposure(INodeMap& nodeMap)
 		cout << "Error: " << e.what() << endl;
 		result = -1;
 	}
-	return result;
+	return result, NewFrameRate;
 }
 
 /*
@@ -1006,9 +1012,17 @@ int main(int /*argc*/, char** /*argv*/)
 	result = RecordMultipleCameraThreads(camList);
 	
 	// Save metadata with recording settings
-	// TODO: create file
-	// write fps, hight, weight, color, chosenVideoType = MJPG
+	cout << "Metadata file: " << metadataFilename << " saved in "<< path << endl << endl;
 
+	metadataFile.open(metadataFilename);
+	metadataFile << "# This is the metadata summarizing recording parameters" << endl;
+	metadataFile << "Filename=" << metadataFilename << endl;
+	metadataFile << "Framerate=" << NewFrameRate << endl;
+	metadataFile << "ImageHeight=" << heightToSet << endl;
+	metadataFile << "ImageWidth=" << widthToSet << endl;
+	metadataFile << "ColorVideo=1 # change here: color = 1, mono = else"<< endl;
+	metadataFile << "chosenVideoType=UNCOMPRESSED # change here: UNCOMPRESSED, MJPG, H264"<< endl;
+	metadataFile << "VideoPath="<< path <<" # change path to save videos"<< endl;
 
 	// Clear camera list before releasing system
 	camList.Clear();
