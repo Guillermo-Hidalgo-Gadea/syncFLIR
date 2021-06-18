@@ -31,23 +31,63 @@ using namespace Spinnaker::Video;
 using namespace std;
 
 
-// PARAMETERS FROM RECORDING SETTINGS
-// TODO: parameters as text input instead of hardcoded before compilation...
-float frameRateToSet = 194; 
+// Initialize Config parameters will be updated by config file
+double frameRateToSet = 100; 
 int imageHeight = 1080; 
 int imageWidth = 1440;
 int color = 1; // 1= color, else = mono
-// TODO: change color format
-// TODO: compression videoType?
+enum videoType {UNCOMPRESSED, MJPG,H264};
+const videoType chosenVideoType = MJPG; // select the type of video compression
+string path;
 
-// select the type of video compression
-enum videoType
+/*
+================
+This function reads the config file to update camera parameters such as directory path, Framerate and image size from previous recording
+================
+*/
+int readconfig(string metadata)
 {
-	UNCOMPRESSED,
-	MJPG,
-	H264
-};
-const videoType chosenVideoType = MJPG;
+	int result = 0;
+
+	std::ifstream cFile(metadata);
+	if (cFile.is_open())
+	{
+		
+		std::string line;
+		while (getline(cFile, line))
+		{
+			line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
+			if (line[0] == '#' || line.empty()) continue;
+
+			auto delimiterPos = line.find("=");
+			auto name = line.substr(0, delimiterPos);
+			auto value = line.substr(delimiterPos + 1);
+
+			//Custom coding
+			if (name == "Framerate") frameRateToSet = std::stod(value);
+			else if (name == "ImageHeight") imageHeight = std::stod(value);
+			else if (name == "ImageWidth") imageWidth = std::stod(value);
+			else if (name == "ColorVideo") color = std::stod(value);
+			else if (name == "chosenVideoType") chosenVideoType = value;
+			else if (name == "VideoPath") path = value;
+		}
+	}
+	else
+	{
+		std::cerr << "Couldn't open config file for reading.\n";
+	}
+
+	cout << "Parameter Settings from metadata file:";
+	cout << "\nFramerate=" << frameRateToSet;
+	std::cout << "\nImageHeight=" << imageHeight;
+	std::cout << "\nImageWidth=" << imageWidth;
+	std::cout << "\nColorVideo=" << color;
+	std::cout << "\nchosenVideoType=" << chosenVideoType;
+	std::cout << "\nVideoPath=" << path<< endl << endl;
+
+	return result, frameRateToSet, imageHeight, imageWidth, color, chosenVideoType, path;
+}
+
 
 
 /*
@@ -154,8 +194,7 @@ int RetrieveImagesFromFiles(vector<string>& filenames, int numFiles)
 {
 	int result = 0;
 	int imageSize = imageHeight * imageWidth;
-	// PixelFormat_BayerRG8;  see http://softwareservices.flir.com/Spinnaker/latest/group___camera_defs__h.html#ggabd5af55aaa20bcb0644c46241c2cbad1aab73a79118b4db06f577b5e2563d7246
-
+	
 	try {
 		// Loop through the binary filenames and retrieve images of imageSize
 		for (int fileCnt = 0; fileCnt < numFiles; fileCnt++)
@@ -265,12 +304,19 @@ int main(int /*argc*/, char** /*argv*/)
 	cout << "MIT License Copyright (c) 2021 GuillermoHidalgoGadea.com" << endl;
 	cout << "*************************************************************" << endl;
 
-	// TODO: ask for metadata first to update config parameters
+	// Ask for metadata first to update config parameters
+	string metadata;
+	cout << endl << "Enter the METADATA file of the specific recording to convert: " << endl;
+	getline(cin, metadata); 
+	cout << endl << "Setting parameters from " + metadata + " ... " << endl;
+	
+	// Set configuration parameters
+	readconfig(metadata);
 	
 	// Manual input of Binary filenames to be converted
 	vector<string> filenames = {};
 	string S, T;
-	cout << endl << "Enter the binary files to convert separated by a + sign: " << endl;
+	cout << endl << "Enter the BINARY files to convert separated by a + sign: " << endl;
 	getline(cin, S); // read entire line
 	stringstream X(S);
 
