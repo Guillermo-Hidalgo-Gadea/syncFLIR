@@ -1026,9 +1026,10 @@ int main(int /*argc*/, char** /*argv*/)
 	metadataFile << "Framerate=" << NewFrameRate << endl;
 	metadataFile << "ImageHeight=" << heightToSet << endl;
 	metadataFile << "ImageWidth=" << widthToSet << endl;
-	metadataFile << "ColorVideo=1 # change here: color = 1, mono = else" << endl;
-	metadataFile << "chosenVideoType=UNCOMPRESSED # change here: UNCOMPRESSED, MJPG, H264" << endl;
-	metadataFile << "VideoPath=" << path << " # change path to save videos" << endl;
+	metadataFile << "# Change ColorVideo = 1/0, chosenVideoType =UNCOMPRESSED/MJPG/H264 and VideoPath" << endl;
+	metadataFile << "ColorVideo=1" << endl;
+	metadataFile << "chosenVideoType=UNCOMPRESSED" << endl;
+	metadataFile << "VideoPath=" << path << endl;
 
 	// Clear camera list before releasing system
 	camList.Clear();
