@@ -45,11 +45,17 @@ std::string triggerCam = "20323052"; // serial number of primary camera
 double exposureTime = 5000.0; // exposure time in microseconds (i.e., 1/ max FPS)
 double FPS = 100.0; // frames per second in Hz
 double compression = 1.0; // compression factor
+int widthToSet;
+int heightToSet;
+double NewFrameRate;
 // TODO: use decimation or binning instead of size compression (http://softwareservices.flir.com/BFS-U3-89S6/latest/Model/public/ImageFormatControl.html)
 int numBuffers = 200; // depending on RAM
 
 // placeholder for names of file and camera IDs
 vector<ofstream> cameraFiles;
+ofstream csvFile;
+ofstream metadataFile;
+string metadataFilename;
 int cameraCnt;
 string serialNumber;
 
@@ -78,7 +84,7 @@ int readconfig()
 	std::ifstream cFile("myConfig.txt");
 	if (cFile.is_open())
 	{
-		
+
 		std::string line;
 		while (getline(cFile, line))
 		{
@@ -109,7 +115,7 @@ int readconfig()
 	std::cout << "\ncompression=" << compression;
 	std::cout << "\nexposureTime=" << exposureTime;
 	std::cout << "\nnumBuffers=" << numBuffers;
-	std::cout << "\nPath=" << path<< endl << endl;
+	std::cout << "\nPath=" << path << endl << endl;
 
 	return result, triggerCam, exposureTime, path, FPS, compression, numBuffers;
 }
@@ -204,18 +210,15 @@ int CreateFiles(string serialNumber, int cameraCnt)
 	stringstream sstream_metadataFile;
 	string tmpFilename;
 	string csvFilename;
-	string metadataFilename;
 	ofstream filename; // TODO: still needed?
-	ofstream csvFile;
-	ofstream metadataFile;
 	const string csDestinationDirectory = path;
-	
+
 	// Create temporary file from serialnum assigned to cameraCnt
 	sstream_tmpFilename << csDestinationDirectory << getCurrentDateTime() + "_" + serialNumber << "_file" << cameraCnt << ".tmp";
 	sstream_tmpFilename >> tmpFilename;
 
 	cout << "File " << tmpFilename << " initialized" << endl;
-	
+
 	cameraFiles.push_back(std::move(filename)); // TODO: still needed?
 	cameraFiles[cameraCnt].open(tmpFilename.c_str(), ios_base::out | ios_base::binary);
 
@@ -223,18 +226,18 @@ int CreateFiles(string serialNumber, int cameraCnt)
 	if (cameraCnt == 0)
 	{
 		// create csv logfile with headers
-		sstream_csvFile << csDestinationDirectory << getCurrentDateTime() << ".csv";
+		sstream_csvFile << csDestinationDirectory << "logfile_" << getCurrentDateTime() << ".csv";
 		sstream_csvFile >> csvFilename;
 
 		cout << "CSV file: " << csvFilename << " initialized" << endl << endl;
 
 		csvFile.open(csvFilename);
 		csvFile << "FrameID" << "," << "Timestamp" << "," << "SerialNumber" << "," << "FileNumber" << "," << "SystemTimeInNanoseconds" << endl;
-		
+
 		// create txt metadata
-		sstream_metadataFile << csDestinationDirectory << getCurrentDateTime() << ".txt";
+		sstream_metadataFile << csDestinationDirectory << "metadata_"<< getCurrentDateTime() << ".txt";
 		sstream_metadataFile >> metadataFilename;
-		
+
 	}
 	return result;
 }
@@ -252,7 +255,7 @@ int ImageSettings(INodeMap& nodeMap)
 	try
 	{
 		// TODO: update with decimation and or binning
-		
+
 		// Set image width
 		CIntegerPtr ptrWidth = nodeMap.GetNode("Width");
 		if (IsAvailable(ptrWidth) && IsWritable(ptrWidth))
@@ -260,7 +263,7 @@ int ImageSettings(INodeMap& nodeMap)
 			int width = ptrWidth->GetMax();
 			widthToSet = width / compression;
 			ptrWidth->SetValue(widthToSet);
-			
+
 
 			cout << "Width set to " << ptrWidth->GetValue() << "..." << endl;
 		}
@@ -466,7 +469,7 @@ int ConfigureExposure(INodeMap& nodeMap)
 		// set chosen FPS
 		ptrAcquisitionFrameRate->SetValue(FPSToSet);
 
-		double NewFrameRate = ptrAcquisitionFrameRate->GetValue();
+		NewFrameRate = ptrAcquisitionFrameRate->GetValue();
 		cout << "New acquisition Frame Rate is  : " << NewFrameRate << endl;
 
 	}
@@ -920,6 +923,9 @@ int RecordMultipleCameraThreads(CameraList camList)
 
 		// Delete array pointer
 		delete[] grabThreads;
+
+		// End of recording
+		cout << endl << "*** STOP RECORDING ***" << endl << endl;
 	}
 	catch (Spinnaker::Exception& e)
 	{
@@ -1010,9 +1016,9 @@ int main(int /*argc*/, char** /*argv*/)
 
 	// Run all cameras
 	result = RecordMultipleCameraThreads(camList);
-	
+
 	// Save metadata with recording settings
-	cout << "Metadata file: " << metadataFilename << " saved in "<< path << endl << endl;
+	cout << endl << "Metadata file: " << metadataFilename << " saved in " << path << endl << endl;
 
 	metadataFile.open(metadataFilename);
 	metadataFile << "# This is the metadata summarizing recording parameters" << endl;
@@ -1020,9 +1026,9 @@ int main(int /*argc*/, char** /*argv*/)
 	metadataFile << "Framerate=" << NewFrameRate << endl;
 	metadataFile << "ImageHeight=" << heightToSet << endl;
 	metadataFile << "ImageWidth=" << widthToSet << endl;
-	metadataFile << "ColorVideo=1 # change here: color = 1, mono = else"<< endl;
-	metadataFile << "chosenVideoType=UNCOMPRESSED # change here: UNCOMPRESSED, MJPG, H264"<< endl;
-	metadataFile << "VideoPath="<< path <<" # change path to save videos"<< endl;
+	metadataFile << "ColorVideo=1 # change here: color = 1, mono = else" << endl;
+	metadataFile << "chosenVideoType=UNCOMPRESSED # change here: UNCOMPRESSED, MJPG, H264" << endl;
+	metadataFile << "VideoPath=" << path << " # change path to save videos" << endl;
 
 	// Clear camera list before releasing system
 	camList.Clear();
@@ -1030,7 +1036,6 @@ int main(int /*argc*/, char** /*argv*/)
 	// Release system
 	system->ReleaseInstance();
 
-	cout << endl << "Recording ended" << endl << endl;
 	cout << endl << "Done! Press Enter to exit..." << endl << endl;
 	// TODO: print Working directory?
 
