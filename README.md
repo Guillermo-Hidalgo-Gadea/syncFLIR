@@ -1,6 +1,8 @@
 # syncFLIR
 A synchronized multiview video recording setup using FLIR cameras and Spinnaker [SDK](http://softwareservices.flir.com/Spinnaker/latest/index.html) on a Windows machine.
 
+## **!!! The project has migrated to [GitLab](https://gitlab.ruhr-uni-bochum.de/ikn/syncflir) !!!**
+
 This code compilation allows to operate a wired setup of FLIR cameras for synchronized video recording. Due to the high data stream with incresing number of cameras and the processing speed required for high fps recordings, it is recommended to use at least 30GB of RAM and runnig the video recording on a SSD disk. This setup was developed and tested using 6 USB3 cameras connected to 2 separate windows machines. The three cameras on the secondary machine run in idle mode until triggered by the primary camera from the first machine, thus synchronizing all six cameras over both machines.
 
 To further optimize processing speed, cameras dump their recording to a binary file as intermediate storage (**RECtoBIN.cpp**). The recording process is logged in a .csv file with exact time stamps and frame IDs. In a subsequent process, the binary files can be read out and converted to .avi video files (**BINtoAVI.cpp**). In case regular video players fail to play your videos (e.g., due to broken codec) try using OpenCV in python (**VideoPlayer.py**). To keep track of recording consistancy (i.e., skipped frames, inter-frame-intervals, average fps, etc.) use the diagnostics tool provided (**Diagnostics.py**) to analyze the recording log.
