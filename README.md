@@ -1,4 +1,4 @@
-# syncFLIR
+# syncFLIR [<img src="https://github.com/Guillermo-Hidalgo-Gadea/personal-academic-website/blob/master/assets/images/icon.png" alt="logo" align="right" width="100"/>](https://guillermohidalgogadea.com/)
 A synchronized multiview video recording setup using FLIR cameras and Spinnaker [SDK](http://softwareservices.flir.com/Spinnaker/latest/index.html) on a Windows machine.
 
 ## **!!! The project has migrated to [GitLab](https://gitlab.ruhr-uni-bochum.de/ikn/syncflir) !!!**
