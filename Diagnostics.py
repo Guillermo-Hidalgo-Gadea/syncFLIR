@@ -92,8 +92,8 @@ def initialize_pdf(logfilepath):
     pdf.setFont("Times-Bold",16)
     pdf.drawCentredString(290,770, title) #(x = [0, 600], x = [0, 800])
     pdf.drawCentredString(290, 750, subTitle)
-    logo = os.path.dirname(__file__) + "/logo.png"
-    pdf.drawInlineImage(logo, 40, 750, width = 70, height = 70)
+    #logo = os.path.dirname(__file__) + "/logo.png"
+    #pdf.drawInlineImage(logo, 40, 750, width = 70, height = 70)
     pdf.line(50, 720, 550, 720)
 
     intro = pdf.beginText(70, 700)
