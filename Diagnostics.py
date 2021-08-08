@@ -66,9 +66,14 @@ height = len(ascii_logo.splitlines()) * 3
 
 def read_csv_logfile():
     # Choose CVS File from Dialog Box
+
     logfilepath = filedialog.askopenfilenames(title='Choose the csv log file to analyze')
-    print("Reading .csv logfile ...")
-    logfile = pd.read_csv(logfilepath[0])
+    if not logfilepath:
+        return 
+    else:
+        print("Reading .csv logfile ...")
+        logfile = pd.read_csv(logfilepath[0])
+
     return logfilepath, logfile
 
 def initialize_pdf(logfilepath):
@@ -79,9 +84,9 @@ def initialize_pdf(logfilepath):
     title = 'Diagnostic Report'
     subTitle = 'Recording: ' + logfilepath[0][-19:-4]
     textLinesIntro = [
-    'This diagnostics report provides visual feedback for the video recording mentioned above,',
-    'as extracted from the recording logfile generated with the RECtoBIN executable. Should the',
-    'overall recording performance be unsatisfactory, try increasing the RAM and saving to SSD.',
+    'This diagnostics report provides visual feedback for the video recording mentioned above.',
+    'The logfile was generated with RECtoBIN syncFLIR during synchronized recording. Should the',
+    'overall recording performance be unsatisfactory, try upgrading RAM and SSD write speed.',
     'Report generated with Diagnostics.py - MIT Copyright (c) 2021 GuillermoHidalgoGadea.com']
 
     # Create PDF
@@ -108,7 +113,11 @@ def initialize_pdf(logfilepath):
 
 def syncFLIR_diagnostics():
 
-    logfilepath, logfile = read_csv_logfile()
+    try:
+        logfilepath, logfile = read_csv_logfile()
+    except:
+        return
+    
     pdf, fileName = initialize_pdf(logfilepath)
 
     # Split logfile by Serial number
@@ -203,9 +212,11 @@ def syncFLIR_diagnostics():
 
             # write timeseries figures to pdf
             pdf.drawInlineImage (timeseries, 0, himage, width=600, height = 120)
+            os.remove(timeseries)
 
             # wirte histograms to pdf
             pdf.drawInlineImage (histogram, whist, 390, width=180, height = 120)
+            os.remove(histogram)
 
             # move next text to the right
             wtext = wtext + 180
@@ -236,8 +247,11 @@ if __name__ == '__main__':
 
         elif choice.startswith("y"):
             file = syncFLIR_diagnostics()
-            input(f"Done! File saved: {file} ")
-            open_file(file)
+            if not file:
+                input(f"Diagnostics canceled.")
+            else:
+                input(f"Done! File saved: {file} ")
+                open_file(file)
             choice = 'main'
 
         elif choice.startswith("n"):
